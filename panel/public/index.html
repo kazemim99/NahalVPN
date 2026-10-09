@@ -1,0 +1,2165 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>پنل کاربری</title>
+  <!-- All assets served locally — no CDN needed -->
+  <script src="/react.production.min.js"></script>
+  <script src="/react-dom.production.min.js"></script>
+  <script src="/babel.min.js"></script>
+  <script src="/tailwind.min.css"></script>
+  <script src="/qrcode.min.js"></script>
+  <style>
+    @font-face {
+      font-family: 'Vazirmatn';
+      src: local('Vazirmatn'), local('Tahoma');
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0e1a; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes ping {
+      75%, 100% { transform: scale(2); opacity: 0; }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .animate-ping  { animation: ping 1s cubic-bezier(0,0,.2,1) infinite; }
+    .animate-spin  { animation: spin 1s linear infinite; }
+    input::placeholder { font-family: Vazirmatn, Tahoma, system-ui; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-box { background: #111827; border: 1px solid rgba(99,102,241,0.3); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    const API_BASE = window.location.origin;
+    const FETCH_OPTS = { credentials: "include" };
+
+    const toPersianNum = (n) => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
+
+    const formatBytes = (bytes) => {
+      if (!bytes || bytes === 0) return { value: "۰", unit: "بایت" };
+      const units = ["بایت", "کیلوبایت", "مگابایت", "گیگابایت"];
+      const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 3);
+      return { value: toPersianNum((bytes / Math.pow(1024, i)).toFixed(2)), unit: units[i] };
+    };
+
+    const formatDate = (ts) => {
+      if (!ts || ts === 0) return "نامحدود";
+      return toPersianNum(new Date(ts).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" }));
+    };
+
+    const daysLeft = (ts) => {
+      if (!ts || ts === 0) return null;
+      const d = Math.ceil((ts - Date.now()) / 86400000);
+      return d < 0 ? 0 : d;
+    };
+
+    const emailFromRemark = (remark) => {
+      const parts = remark.split("-");
+      return parts[parts.length - 1] || null;
+    };
+
+    const parseLink = (uri) => {
+      try {
+        const remark = decodeURIComponent((uri.split("#")[1]) || "");
+        const email = emailFromRemark(remark);
+        return email ? { email } : null;
+      } catch { return null; }
+    };
+
+    function requestNotifPermission() {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+
+    function sendNotification(title, body) {
+      if ("Notification" in window && Notification.permission === "granted") {
+        try { new Notification(title, { body, icon: "/react.production.min.js" }); } catch {}
+      }
+    }
+
+    // ── QR Modal ─────────────────────────────────────────────────────────────
+    function QRModal({ link, email, onClose }) {
+      const canvasRef = useRef(null);
+      const [copied, setCopied] = useState(false);
+
+      useEffect(() => {
+        if (canvasRef.current && link && typeof QRCode !== "undefined") {
+          QRCode.toCanvas(canvasRef.current, link, { width: 240, margin: 2, color: { dark: "#000000", light: "#ffffff" } }, () => {});
+        }
+      }, [link]);
+
+      const copy = () => {
+        try {
+          navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+        } catch {
+          const ta = document.createElement("textarea"); ta.value = link; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+          setCopied(true); setTimeout(() => setCopied(false), 2000);
+        }
+      };
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-white">کانفیگ — {email}</h3>
+              <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+            <div className="flex justify-center mb-4 bg-white rounded-xl p-3">
+              <canvas ref={canvasRef} />
+            </div>
+            <div className="bg-slate-900/60 rounded-lg p-2 text-xs text-slate-400 break-all mb-3 max-h-16 overflow-y-auto" dir="ltr" style={{ fontSize: "10px" }}>{link}</div>
+            <button onClick={copy} className="w-full py-2.5 rounded-xl text-sm font-bold transition"
+              style={{ background: copied ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+              {copied ? "کپی شد ✓" : "کپی کانفیگ"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Sub Modal ─────────────────────────────────────────────────────────────
+    function SubModal({ subUrl, links, email, onClose }) {
+      const [copied, setCopied] = useState(null);
+
+      const copy = (text, key) => {
+        try { navigator.clipboard.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(null), 2000); }); }
+        catch {
+          const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+          setCopied(key); setTimeout(() => setCopied(null), 2000);
+        }
+      };
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-white">اشتراک — {email}</h3>
+              <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+
+            {subUrl && (
+              <div className="mb-4">
+                <p className="text-xs text-slate-400 mb-1.5 font-bold">لینک اشتراک:</p>
+                <div className="bg-slate-900/60 rounded-lg p-2 text-xs text-slate-300 break-all mb-2" dir="ltr">{subUrl}</div>
+                <button onClick={() => copy(subUrl, "sub")} className="w-full py-2.5 rounded-xl text-sm font-bold transition"
+                  style={{ background: copied === "sub" ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                  {copied === "sub" ? "کپی شد ✓" : "کپی لینک اشتراک"}
+                </button>
+              </div>
+            )}
+
+            {links.length > 0 && (
+              <div>
+                <p className="text-xs text-slate-400 mb-2 font-bold">کانفیگ‌ها ({toPersianNum(links.length)}):</p>
+                {links.map((link, i) => {
+                  const remark = decodeURIComponent((link.split("#")[1] || "")).trim() || `کانفیگ ${i+1}`;
+                  return (
+                    <div key={i} className="mb-2 rounded-xl border border-slate-700/30 bg-slate-900/40 p-2.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-300 font-bold" dir="ltr">{remark}</span>
+                        <button onClick={() => copy(link, i)} className="text-xs px-2.5 py-1 rounded-lg font-bold"
+                          style={{ background: copied === i ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                          {copied === i ? "✓" : "کپی"}
+                        </button>
+                      </div>
+                      <div className="text-xs text-slate-600 truncate" dir="ltr">{link.substring(0, 55)}...</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Admin Login Modal ─────────────────────────────────────────────────────
+    function AdminLoginModal({ onSuccess, onClose }) {
+      const [username, setUsername] = useState("");
+      const [password, setPassword] = useState("");
+      const [newPassword, setNewPassword] = useState("");
+      const [confirmPassword, setConfirmPassword] = useState("");
+      const [step, setStep] = useState("username"); // "username" | "password" | "setup"
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState("");
+
+      const checkUsername = async () => {
+        setLoading(true); setError("");
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/login`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }), credentials: "include",
+          });
+          const d = await r.json();
+          if (d.status === "setup") { setStep("setup"); }
+          else if (d.ok) { onSuccess({ username: d.username, role: d.role, prefixes: d.prefixes, subdomains: d.subdomains || [], domain: d.domain || "", pricePerGB: d.pricePerGB || 0 }); }
+          else { setStep("password"); }
+        } catch { setError("خطا در اتصال"); }
+        setLoading(false);
+      };
+
+      const doLogin = async () => {
+        setLoading(true); setError("");
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/login`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }), credentials: "include",
+          });
+          const d = await r.json();
+          if (d.ok) { onSuccess({ username: d.username, role: d.role, prefixes: d.prefixes, subdomains: d.subdomains || [], domain: d.domain || "", pricePerGB: d.pricePerGB || 0 }); }
+          else { setError(d.error || "خطا در ورود"); }
+        } catch { setError("خطا در اتصال"); }
+        setLoading(false);
+      };
+
+      const doSetup = async () => {
+        if (newPassword !== confirmPassword) { setError("رمز عبور تکرار نشده است"); return; }
+        setLoading(true); setError("");
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/setup`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, newPassword }), credentials: "include",
+          });
+          const d = await r.json();
+          if (d.ok) { onSuccess({ username: d.username, role: d.role, prefixes: d.prefixes, subdomains: d.subdomains || [], domain: d.domain || "", pricePerGB: d.pricePerGB || 0 }); }
+          else { setError(d.error || "خطا در تنظیم رمز"); }
+        } catch { setError("خطا در اتصال"); }
+        setLoading(false);
+      };
+
+      const roleHints = { mostafa: "مدیریت کاربران C و S", danial: "مدیریت کاربران D", ramin: "مدیریت سایر کاربران", admin: "مدیریت ادمین‌ها و مشاهده ترافیک" };
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-black text-white text-base">ورود مدیر</h3>
+              <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+
+            {step === "username" && (
+              <div>
+                <label className="text-xs text-slate-400 block mb-1.5">نام کاربری:</label>
+                <input type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase())}
+                  onKeyDown={e => e.key === "Enter" && username.trim() && checkUsername()}
+                  placeholder="نام کاربری خود را وارد کنید"
+                  className="w-full bg-slate-900/60 border border-slate-600/40 rounded-xl px-3.5 py-2.5 text-sm text-white mb-4 focus:outline-none focus:border-indigo-500/50" dir="ltr" />
+                {error && <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{error}</div>}
+                <button onClick={checkUsername} disabled={loading || !username.trim()} className="w-full py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"/> : "ادامه"}
+                </button>
+              </div>
+            )}
+
+            {step === "password" && (
+              <div>
+                <p className="text-sm text-slate-300 mb-4">رمز عبور {username} را وارد کنید:</p>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && doLogin()}
+                  placeholder="رمز عبور"
+                  className="w-full bg-slate-900/60 border border-slate-600/40 rounded-xl px-3.5 py-2.5 text-sm text-white mb-4 focus:outline-none focus:border-indigo-500/50" dir="ltr" />
+                {error && <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{error}</div>}
+                <div className="flex gap-2">
+                  <button onClick={() => { setStep("username"); setError(""); }} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-slate-700/40 border border-slate-600/30 text-slate-300">بازگشت</button>
+                  <button onClick={doLogin} disabled={loading || !password} className="flex-1 py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                    {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"/> : "ورود"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === "setup" && (
+              <div>
+                <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 mb-4">
+                  <p className="text-indigo-300 text-xs font-bold mb-1">اولین ورود — رمز عبور تنظیم کنید</p>
+                  <p className="text-indigo-400/70 text-xs">رمز عبور باید حداقل ۶ کاراکتر باشد.</p>
+                </div>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                  placeholder="رمز عبور جدید"
+                  className="w-full bg-slate-900/60 border border-slate-600/40 rounded-xl px-3.5 py-2.5 text-sm text-white mb-3 focus:outline-none focus:border-indigo-500/50" dir="ltr" />
+                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && doSetup()}
+                  placeholder="تکرار رمز عبور"
+                  className="w-full bg-slate-900/60 border border-slate-600/40 rounded-xl px-3.5 py-2.5 text-sm text-white mb-4 focus:outline-none focus:border-indigo-500/50" dir="ltr" />
+                {error && <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{error}</div>}
+                <button onClick={doSetup} disabled={loading || !newPassword || !confirmPassword} className="w-full py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"/> : "ذخیره و ورود"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Create Client Modal ───────────────────────────────────────────────────
+    // ── L2TP/OpenVPN accounts (same SoftEther account serves both protocols) ──
+    // NOTE: currently UNUSED — the L2TP/OpenVPN tab was removed from the admin dashboard.
+    // Kept here so the feature can be re-enabled by rendering <L2tpAccountsPanel /> again.
+    function L2tpAccountsPanel() {
+      const L2TP_PLANS = [{ v: 1, l: "۱ ماهه" }, { v: 2, l: "۲ ماهه" }, { v: 3, l: "۳ ماهه" }, { v: 6, l: "۶ ماهه" }];
+      const [l2tpMonths, setL2tpMonths] = useState(1);
+      const [l2tpLoading, setL2tpLoading] = useState(false);
+      const [l2tpError, setL2tpError] = useState("");
+      const [l2tpCreated, setL2tpCreated] = useState(null);
+      const [l2tpUsers, setL2tpUsers] = useState([]);
+      const [l2tpListLoading, setL2tpListLoading] = useState(true);
+      const [l2tpEnabled, setL2tpEnabled] = useState(true);
+      const [l2tpDeleteConfirm, setL2tpDeleteConfirm] = useState(null);
+      const [l2tpResetResult, setL2tpResetResult] = useState(null);
+      const [l2tpCopied, setL2tpCopied] = useState("");
+
+      const l2tpCopy = (text, key) => {
+        try { navigator.clipboard.writeText(text).then(() => { setL2tpCopied(key); setTimeout(() => setL2tpCopied(""), 1500); }); }
+        catch {}
+      };
+
+      const fetchL2tpUsers = async () => {
+        setL2tpListLoading(true);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/l2tp/users`);
+          const d = await r.json();
+          if (d.ok) { setL2tpEnabled(d.enabled); setL2tpUsers(d.users || []); }
+        } catch {}
+        setL2tpListLoading(false);
+      };
+      useEffect(() => { fetchL2tpUsers(); }, []);
+
+      const submitL2tpCreate = async () => {
+        setL2tpLoading(true); setL2tpError(""); setL2tpCreated(null);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/l2tp/users`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ months: l2tpMonths }),
+          });
+          const d = await r.json();
+          if (d.ok) { setL2tpCreated(d); fetchL2tpUsers(); }
+          else setL2tpError(d.error || "خطا در ایجاد حساب");
+        } catch { setL2tpError("خطا در اتصال"); }
+        setL2tpLoading(false);
+      };
+
+      const resetL2tpPassword = async (username) => {
+        setL2tpResetResult(null);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/l2tp/user-password`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+          });
+          const d = await r.json();
+          if (d.ok) setL2tpResetResult(d);
+          else setL2tpError(d.error || "خطا در تغییر رمز");
+        } catch { setL2tpError("خطا در اتصال"); }
+      };
+
+      const deleteL2tpUser = async (username) => {
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/l2tp/user`, {
+            method: "DELETE", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+          });
+          const d = await r.json();
+          if (d.ok) { setL2tpDeleteConfirm(null); fetchL2tpUsers(); }
+          else setL2tpError(d.error || "خطا در حذف");
+        } catch { setL2tpError("خطا در اتصال"); }
+      };
+
+      const copyText = (u, p, server) =>
+        `پنل کاربری: https://${server}:8443/\nنام کاربری: ${u}\nرمز عبور: ${p}`;
+
+      return (
+        <div className="card p-4">
+          {!l2tpEnabled ? (
+            <div className="text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">L2TP/OpenVPN روی این سرور فعال نیست</div>
+          ) : (
+            <>
+              <label className="text-xs text-slate-400 block mb-1">مدت اعتبار (بدون محدودیت ترافیک):</label>
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {L2TP_PLANS.map(p => (
+                  <button key={p.v} type="button" onClick={() => setL2tpMonths(p.v)}
+                    className={`py-2.5 rounded-xl text-xs font-bold border transition ${l2tpMonths === p.v ? "bg-indigo-600/30 border-indigo-500/60 text-indigo-300" : "bg-slate-900/40 border-slate-600/30 text-slate-400 hover:border-slate-500/50"}`}>
+                    {p.l}
+                  </button>
+                ))}
+              </div>
+
+              {l2tpError && <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{l2tpError}</div>}
+
+              <button onClick={submitL2tpCreate} disabled={l2tpLoading} className="w-full mb-4 py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                {l2tpLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"/> : "+ ایجاد حساب L2TP/OpenVPN"}
+              </button>
+
+              {l2tpCreated && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1.5">
+                  <div className="flex justify-between items-center"><span className="text-slate-400">پنل کاربری:</span><span className="font-bold text-white" dir="ltr">https://{l2tpCreated.server}:8443/</span></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-400">نام کاربری:</span><span className="font-bold text-emerald-300" dir="ltr">{l2tpCreated.username}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-400">رمز عبور:</span><span className="font-bold text-emerald-300" dir="ltr">{l2tpCreated.password}</span></div>
+                  <button onClick={() => l2tpCopy(copyText(l2tpCreated.username, l2tpCreated.password, l2tpCreated.server), "created")}
+                    className="w-full mt-1 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold">
+                    {l2tpCopied === "created" ? "کپی شد ✓" : "کپی همه"}
+                  </button>
+                </div>
+              )}
+
+              <p className="text-xs text-slate-500 mb-2">{l2tpListLoading ? "در حال بارگذاری..." : `${toPersianNum(l2tpUsers.length)} حساب L2TP/OpenVPN`}</p>
+              {l2tpUsers.map(u => (
+                <div key={u.username} className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-2.5 mb-2 text-xs" dir="ltr">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-white">{u.username}</span>
+                    <span className="text-slate-500">{u.expiry}</span>
+                  </div>
+                  {l2tpResetResult && l2tpResetResult.username === u.username && (
+                    <div className="mb-1.5 p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex justify-between items-center">
+                      <span>new: {l2tpResetResult.password}</span>
+                      <button onClick={() => l2tpCopy(copyText(u.username, l2tpResetResult.password, l2tpCreated?.server || "l.nahalkmi.ir"), u.username)} className="px-2 py-0.5 rounded bg-emerald-500/20">{l2tpCopied === u.username ? "✓" : "copy"}</button>
+                    </div>
+                  )}
+                  <div className="flex gap-1.5 justify-end">
+                    <button onClick={() => l2tpCopy(
+                        (l2tpResetResult && l2tpResetResult.username === u.username)
+                          ? copyText(u.username, l2tpResetResult.password, "l.nahalkmi.ir")
+                          : `پنل کاربری: https://l.nahalkmi.ir:8443/\nنام کاربری: ${u.username}`,
+                        "row_" + u.username
+                      )}
+                      className="px-2 py-1 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-300">
+                      {l2tpCopied === "row_" + u.username ? "کپی شد ✓" : "کپی اطلاعات"}
+                    </button>
+                    <button onClick={() => resetL2tpPassword(u.username)} className="px-2 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">تغییر رمز</button>
+                    {l2tpDeleteConfirm === u.username ? (
+                      <button onClick={() => deleteL2tpUser(u.username)} className="px-2 py-1 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300">مطمئنی؟</button>
+                    ) : (
+                      <button onClick={() => setL2tpDeleteConfirm(u.username)} className="px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">حذف</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ── NahalVPN app accounts (task 9.1) ─────────────────────────────────────
+    // Accounts for the NahalVPN Android/Windows app. They live in nahalvpn-api; the panel server calls it as the
+    // signed-in admin, so each reseller sees only their own app users and the built-in admin can only look.
+    // Traffic is unlimited: the plan is only a length of time. The traffic figure is a statistic for the reseller.
+    // Outage notice: when on, every NahalVPN app shows the message in a modal as it opens. Only the owner can switch
+    // it (nahalvpn-api decides); resellers just see whether it is on.
+    function AppNoticeCard() {
+      const DEFAULT = "ارتباط قطع شده است و در حال بررسی هستیم. لطفاً صبور باشید.";
+      const [notice, setNotice] = useState(null);
+      const [message, setMessage] = useState("");
+      const [busy, setBusy] = useState(false);
+      const [error, setError] = useState("");
+      const load = async () => {
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/app/notice`, { credentials: "include" });
+          const d = await r.json();
+          if (d.ok) { setNotice(d.notice); setMessage(d.notice.message || DEFAULT); }
+        } catch {}
+      };
+      useEffect(() => { load(); }, []);
+      const toggle = async () => {
+        setBusy(true); setError("");
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/app/notice`, {
+            method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ active: !notice.active, message: message.trim() || DEFAULT }),
+          });
+          const d = await r.json();
+          if (d.ok) setNotice({ ...notice, ...d.notice }); else setError(d.error || "خطا");
+        } catch { setError("خطا در اتصال"); }
+        setBusy(false);
+      };
+      if (!notice) return null;
+      if (!notice.canEdit) {
+        return notice.active ? (
+          <div className="mb-4 text-xs px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300">
+            اطلاعیهٔ قطعی روشن است؛ کاربران اپ این پیام را می‌بینند: «{notice.message}»
+          </div>
+        ) : null;
+      }
+      return (
+        <div className={`rounded-2xl border p-4 mb-4 ${notice.active ? "border-red-500/40 bg-red-500/10" : "border-slate-700/40 bg-slate-800/30"}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className={`text-sm font-bold ${notice.active ? "text-red-300" : "text-slate-200"}`}>اطلاعیهٔ قطعی ارتباط</p>
+              <p className="text-xs text-slate-500">{notice.active ? "روشن است: همهٔ کاربران هنگام باز کردن اپ این پیام را می‌بینند." : "خاموش است. اگر ارتباط مشکل پیدا کرد، روشنش کنید."}</p>
+            </div>
+            <span className={`w-2.5 h-2.5 rounded-full ${notice.active ? "bg-red-400 animate-ping" : "bg-slate-600"}`}/>
+          </div>
+          <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2} maxLength={500}
+            className="w-full mb-2 bg-slate-900/40 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500/50" />
+          {error && <div className="mb-2 text-xs text-red-400">{error}</div>}
+          <button onClick={toggle} disabled={busy}
+            className={`w-full py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50 ${notice.active ? "bg-emerald-600/80 text-white" : "bg-red-600/80 text-white"}`}>
+            {busy ? "..." : notice.active ? "مشکل برطرف شد؛ خاموش کردن اطلاعیه" : "روشن کردن اطلاعیهٔ قطعی"}
+          </button>
+        </div>
+      );
+    }
+
+    // Backups of the app's users: made automatically every night (the newest 14 are kept) or on demand; the owner can
+    // download them to keep a copy off the server. Not shown to anyone else.
+    function AppBackupCard() {
+      const [backups, setBackups] = useState(null);
+      const [open, setOpen] = useState(false);
+      const [busy, setBusy] = useState(false);
+      const [msg, setMsg] = useState("");
+      const load = async () => {
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/app/backups`, { credentials: "include" });
+          const d = await r.json();
+          setBackups(d.ok ? d.backups : null);
+        } catch { setBackups(null); }
+      };
+      useEffect(() => { load(); }, []);
+      const backupNow = async () => {
+        setBusy(true); setMsg("");
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/app/backup-now`, { method: "POST", credentials: "include" });
+          const d = await r.json();
+          setMsg(d.ok ? "پشتیبان ساخته شد." : (d.error || "خطا"));
+          await load();
+        } catch { setMsg("خطا در اتصال"); }
+        setBusy(false);
+      };
+      if (backups === null) return null;
+      const KIND = { daily: "خودکار شبانه", manual: "دستی", "pre-restore": "قبل از بازگردانی" };
+      const latest = backups[0];
+      return (
+        <div className="rounded-2xl border border-slate-700/40 bg-slate-800/30 p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-200">پشتیبان کاربران اپ</p>
+              <p className="text-xs text-slate-500">
+                {latest ? `آخرین پشتیبان: ${formatDate(latest.time)} ساعت ${toPersianNum(new Date(latest.time).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }))}` : "هنوز پشتیبانی ساخته نشده است."}
+                {" "}هر شب خودکار؛ ۱۴ نسخهٔ آخر نگه داشته می‌شود.
+              </p>
+            </div>
+            <button onClick={() => setOpen(!open)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-300">{open ? "بستن" : "نمایش"}</button>
+          </div>
+          {open && (
+            <div className="mt-3 text-xs">
+              <button onClick={backupNow} disabled={busy} className="w-full mb-2 py-2 rounded-xl font-bold bg-indigo-600/70 text-white disabled:opacity-50">
+                {busy ? "در حال ساخت پشتیبان..." : "همین الان پشتیبان بگیر"}
+              </button>
+              {msg && <p className="mb-2 text-emerald-300">{msg}</p>}
+              {backups.map(b => (
+                <div key={b.name} className="flex items-center justify-between py-1.5 border-t border-slate-700/40">
+                  <span className="text-slate-300">{formatDate(b.time)} <span dir="ltr">{toPersianNum(new Date(b.time).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }))}</span> <span className="text-slate-500">· {KIND[b.kind] || b.kind} · {formatBytes(b.size).value} {formatBytes(b.size).unit}</span></span>
+                  <a href={`${API_BASE}/api/admin/app/backup-download?file=${encodeURIComponent(b.name)}`} className="px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">دانلود</a>
+                </div>
+              ))}
+              <p className="mt-2 text-slate-500">این فایل کلیدهای سرور و اطلاعات حساب‌ها را دارد؛ آن را جای امن نگه دارید. بازگرداندن پشتیبان با اسکریپت روی سرور انجام می‌شود.</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function AppAccountsPanel({ readonly }) {
+      const PLANS = [{ v: 1, l: "۱ ماهه" }, { v: 2, l: "۲ ماهه" }, { v: 3, l: "۳ ماهه" }, { v: 6, l: "۶ ماهه" }];
+      const [users, setUsers] = useState([]);
+      const [enabled, setEnabled] = useState(true);
+      const [download, setDownload] = useState("https://app.nahalkmi.ir/");
+      const [listLoading, setListLoading] = useState(true);
+      const [error, setError] = useState("");
+      const [months, setMonths] = useState(1);
+      const [wantedName, setWantedName] = useState("");
+      const [creating, setCreating] = useState(false);
+      const [created, setCreated] = useState(null);
+      const [search, setSearch] = useState("");
+      const [busy, setBusy] = useState(null);
+      const [renewId, setRenewId] = useState(null);
+      const [renewMonths, setRenewMonths] = useState(1);
+      const [confirm, setConfirm] = useState(null);
+      const [newPassword, setNewPassword] = useState(null);
+      const [openId, setOpenId] = useState(null);
+      const [detail, setDetail] = useState(null);
+      const [copied, setCopied] = useState("");
+
+      const copy = (text, key) => {
+        const done = () => { setCopied(key); setTimeout(() => setCopied(""), 1500); };
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done); return; }
+        } catch {}
+        const ta = document.createElement("textarea");
+        ta.value = text; ta.style.cssText = "position:fixed;left:-9999px";
+        document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); done();
+      };
+      const accountText = (username, password, expiresAt) =>
+        `اپلیکیشن نهال وی‌پی‌ان\n\nلینک دانلود (اندروید و ویندوز):\n${download}\n\nنام کاربری: ${username}\n` +
+        (password ? `رمز عبور: ${password}\n` : "") + `اعتبار تا: ${formatDate(expiresAt)}`;
+
+      const call = async (method, path, body) => {
+        const r = await fetch(`${API_BASE}/api/admin/app/${path}`, {
+          method, credentials: "include",
+          ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.ok) throw new Error(d.error || "خطا در اتصال");
+        return d;
+      };
+
+      const load = async () => {
+        setListLoading(true);
+        try {
+          const d = await call("GET", "users");
+          setEnabled(d.enabled); setUsers(d.users || []); if (d.download) setDownload(d.download);
+        } catch (e) { setError(e.message); }
+        setListLoading(false);
+      };
+      useEffect(() => { load(); }, []);
+
+      const loadDetail = async (id) => {
+        setDetail(null);
+        try { setDetail((await call("GET", `user?id=${id}`)).user); } catch (e) { setError(e.message); }
+      };
+      const toggleOpen = (id) => {
+        if (openId === id) { setOpenId(null); return; }
+        setOpenId(id); loadDetail(id);
+      };
+
+      const run = async (key, fn) => {
+        setBusy(key); setError("");
+        try { await fn(); } catch (e) { setError(e.message); }
+        setBusy(null);
+      };
+      const create = () => run("create", async () => {
+        setCreated(null);
+        const d = await call("POST", "users", { months, username: wantedName.trim() || undefined });
+        setCreated({ ...d.user, password: d.password }); setWantedName(""); await load();
+      });
+      const renew = (u) => run("renew" + u.userId, async () => {
+        await call("POST", "renew", { id: u.userId, months: renewMonths }); setRenewId(null); await load();
+      });
+      const toggle = (u) => run("toggle" + u.userId, async () => {
+        await call("POST", u.disabled ? "enable" : "disable", { id: u.userId }); setConfirm(null); await load();
+      });
+      const resetPassword = (u) => run("pw" + u.userId, async () => {
+        const d = await call("POST", "password", { id: u.userId });
+        setConfirm(null); setNewPassword({ userId: u.userId, password: d.password });
+      });
+      const removeDevice = (u, dev) => run("dev" + dev.id, async () => {
+        await call("DELETE", "device", { id: u.userId, deviceId: dev.id }); setConfirm(null);
+        await loadDetail(u.userId); await load();
+      });
+
+      const now = Date.now();
+      const q = search.trim().toLowerCase();
+      const byTraffic = [...users].sort((a, b) => (b.trafficBytes || 0) - (a.trafficBytes || 0));
+      const shown = q ? byTraffic.filter(u => u.username.toLowerCase().includes(q) || (u.owner || "").toLowerCase().includes(q)) : byTraffic;
+      const totalTraffic = users.reduce((n, u) => n + (u.trafficBytes || 0), 0);
+      const btn = "text-xs px-2 py-1 rounded-lg border transition disabled:opacity-50";
+
+      if (!enabled) {
+        return <div className="card p-4 text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">اپلیکیشن نهال روی این سرور فعال نیست</div>;
+      }
+
+      return (
+        <div style={{ animation: "fadeUp .3s ease-out" }}>
+          <AppNoticeCard />
+          <AppBackupCard />
+          {!readonly && (
+            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4 mb-4">
+              <p className="text-sm font-bold text-emerald-300 mb-1">ساخت حساب اپلیکیشن</p>
+              <p className="text-xs text-slate-500 mb-3">ترافیک نامحدود، یک دستگاه. رمز عبور ۴ رقمی خودکار ساخته می‌شود.</p>
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {PLANS.map(p => (
+                  <button key={p.v} type="button" onClick={() => setMonths(p.v)}
+                    className={`py-2.5 rounded-xl text-xs font-bold border transition ${months === p.v ? "bg-emerald-600/25 border-emerald-500/60 text-emerald-300" : "bg-slate-900/40 border-slate-600/30 text-slate-400 hover:border-slate-500/50"}`}>
+                    {p.l}
+                  </button>
+                ))}
+              </div>
+              <input type="text" value={wantedName} onChange={e => setWantedName(e.target.value)} placeholder="نام کاربری (خالی = خودکار)"
+                className="w-full mb-3 bg-slate-800/30 border border-slate-700/40 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/50" dir="ltr" style={{ textAlign: "left" }} />
+              <button onClick={create} disabled={busy === "create"} className="w-full py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#059669,#0d9488)" }}>
+                {busy === "create" ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"/> : "+ ساخت حساب"}
+              </button>
+              {created && (
+                <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1.5">
+                  <div className="flex justify-between"><span className="text-slate-400">نام کاربری:</span><span className="font-bold text-emerald-300" dir="ltr">{created.username}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">رمز عبور:</span><span className="font-bold text-emerald-300" dir="ltr">{created.password}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">اعتبار تا:</span><span className="font-bold text-white">{formatDate(created.expiresAt)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">لینک دانلود اپ:</span><span className="font-bold text-white" dir="ltr">{download}</span></div>
+                  <button onClick={() => copy(accountText(created.username, created.password, created.expiresAt), "created")}
+                    className="w-full mt-1 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold">
+                    {copied === "created" ? "کپی شد ✓" : "کپی اطلاعات برای مشتری"}
+                  </button>
+                  <p className="text-slate-500">رمز فقط همین یک بار نشان داده می‌شود.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{error}</div>}
+
+          <div className="flex gap-2 mb-2">
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="جستجوی حساب..."
+              className="flex-1 bg-slate-800/30 border border-slate-700/40 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/50" dir="ltr" style={{ textAlign: "left" }} />
+            <button onClick={load} disabled={listLoading} className="text-xs px-3 rounded-xl bg-slate-700/40 border border-slate-600/30 text-slate-300">
+              {listLoading ? "..." : "بروزرسانی"}
+            </button>
+          </div>
+          <p className="text-xs text-slate-600 mb-2 px-1">
+            {listLoading ? "در حال بارگذاری..." : q ? `${toPersianNum(shown.length)} از ${toPersianNum(users.length)} حساب` : `${toPersianNum(users.length)} حساب اپلیکیشن · مصرف کل ${formatBytes(totalTraffic).value} ${formatBytes(totalTraffic).unit} · مرتب بر اساس بیشترین مصرف`}
+          </p>
+
+          {!listLoading && shown.length === 0 && (
+            <div className="text-center text-slate-600 py-8 text-sm">{q ? "حسابی با این نام پیدا نشد" : readonly ? "هنوز حسابی ساخته نشده است" : "هنوز حسابی نساخته‌اید. از فرم بالا اولین حساب را بسازید."}</div>
+          )}
+
+          {shown.map(u => {
+            const expired = u.expiresAt <= now;
+            const status = u.disabled ? { dot: "bg-red-400", text: "غیرفعال", cls: "text-red-400" }
+              : expired ? { dot: "bg-amber-400", text: "منقضی", cls: "text-amber-400" }
+              : { dot: "bg-emerald-400", text: "فعال", cls: "text-emerald-400" };
+            const left = daysLeft(u.expiresAt);
+            const isOpen = openId === u.userId;
+            return (
+              <div key={u.userId} className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-3 mb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${status.dot}`}/>
+                    <span className="font-bold text-sm text-white" dir="ltr">{u.username}</span>
+                    <span className={`text-xs ${status.cls}`}>{status.text}</span>
+                  </div>
+                  {readonly && <span className="text-xs text-slate-500">{u.owner}</span>}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 mb-2">
+                  <span>اعتبار تا: <span className="text-white">{formatDate(u.expiresAt)}</span>{!expired && <span className="text-slate-500"> ({toPersianNum(left)} روز)</span>}</span>
+                  <span>دستگاه: <span className="text-white">{toPersianNum(u.devices)} از {toPersianNum(u.deviceLimit)}</span></span>
+                  <span>مصرف: <span className="text-amber-300 font-bold">{formatBytes(u.trafficBytes || 0).value} {formatBytes(u.trafficBytes || 0).unit}</span></span>
+                </div>
+
+                {newPassword && newPassword.userId === u.userId && (
+                  <div className="mb-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex justify-between items-center">
+                    <span>رمز جدید: <b dir="ltr">{newPassword.password}</b></span>
+                    <button onClick={() => copy(accountText(u.username, newPassword.password, u.expiresAt), "pw" + u.userId)} className="px-2 py-0.5 rounded bg-emerald-500/20">
+                      {copied === "pw" + u.userId ? "کپی شد ✓" : "کپی"}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex gap-1.5 flex-wrap">
+                  {!readonly && (renewId === u.userId ? (
+                    <span className="flex gap-1 items-center">
+                      <select value={renewMonths} onChange={e => setRenewMonths(Number(e.target.value))} autoFocus
+                        className="bg-slate-900/60 border border-emerald-500/30 rounded-lg px-1.5 py-1 text-xs text-white focus:outline-none">
+                        {PLANS.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
+                      </select>
+                      <button onClick={() => renew(u)} disabled={busy === "renew" + u.userId} className={`${btn} bg-emerald-500/20 border-emerald-500/30 text-emerald-300 font-bold`}>{busy === "renew" + u.userId ? "..." : "تمدید شود"}</button>
+                      <button onClick={() => setRenewId(null)} className={`${btn} bg-slate-700/40 border-slate-600/30 text-slate-400`}>✕</button>
+                    </span>
+                  ) : (
+                    <button onClick={() => { setRenewId(u.userId); setRenewMonths(1); }} className={`${btn} bg-emerald-500/10 border-emerald-500/20 text-emerald-400`}>تمدید</button>
+                  ))}
+                  {!readonly && (confirm === "toggle" + u.userId ? (
+                    <button onClick={() => toggle(u)} disabled={busy === "toggle" + u.userId} className={`${btn} bg-red-500/20 border-red-500/30 text-red-300`}>{busy === "toggle" + u.userId ? "..." : "غیرفعال شود؟"}</button>
+                  ) : u.disabled ? (
+                    <button onClick={() => toggle(u)} disabled={busy === "toggle" + u.userId} className={`${btn} bg-emerald-500/10 border-emerald-500/20 text-emerald-400`}>{busy === "toggle" + u.userId ? "..." : "فعال کردن"}</button>
+                  ) : (
+                    <button onClick={() => setConfirm("toggle" + u.userId)} className={`${btn} bg-red-500/10 border-red-500/20 text-red-400`}>غیرفعال کردن</button>
+                  ))}
+                  {!readonly && (confirm === "pw" + u.userId ? (
+                    <button onClick={() => resetPassword(u)} disabled={busy === "pw" + u.userId} className={`${btn} bg-indigo-500/25 border-indigo-500/40 text-indigo-200`}>{busy === "pw" + u.userId ? "..." : "رمز قبلی باطل شود؟"}</button>
+                  ) : (
+                    <button onClick={() => setConfirm("pw" + u.userId)} className={`${btn} bg-indigo-500/10 border-indigo-500/20 text-indigo-400`}>رمز جدید</button>
+                  ))}
+                  <button onClick={() => toggleOpen(u.userId)} className={`${btn} bg-slate-700/40 border-slate-600/30 text-slate-300`}>{isOpen ? "بستن" : "دستگاه‌ها"}</button>
+                  <button onClick={() => copy(accountText(u.username, null, u.expiresAt), "row" + u.userId)} className={`${btn} bg-slate-700/40 border-slate-600/30 text-slate-300`}>
+                    {copied === "row" + u.userId ? "کپی شد ✓" : "کپی اطلاعات"}
+                  </button>
+                </div>
+
+                {isOpen && (
+                  <div className="mt-2 pt-2 border-t border-slate-700/40 text-xs">
+                    {!detail || detail.userId !== u.userId ? <p className="text-slate-500">در حال بارگذاری...</p> : (
+                      <>
+                        {detail.devices.length === 0 && <p className="text-slate-500 mb-1">هیچ دستگاهی وارد نشده است.</p>}
+                        {detail.devices.map(dev => (
+                          <div key={dev.id} className="flex items-center justify-between py-1">
+                            <span className="text-slate-300">{dev.name} <span className="text-slate-500">· آخرین استفاده {formatDate(dev.lastSeenAt)}</span></span>
+                            {!readonly && (confirm === "dev" + dev.id ? (
+                              <button onClick={() => removeDevice(u, dev)} disabled={busy === "dev" + dev.id} className={`${btn} bg-red-500/20 border-red-500/30 text-red-300`}>{busy === "dev" + dev.id ? "..." : "خارج شود؟"}</button>
+                            ) : (
+                              <button onClick={() => setConfirm("dev" + dev.id)} className={`${btn} bg-red-500/10 border-red-500/20 text-red-400`}>خروج دستگاه</button>
+                            ))}
+                          </div>
+                        ))}
+                        <p className="text-slate-500 mt-1">مصرف (فقط آمار، بدون محدودیت): <span className="text-slate-300">{formatBytes(detail.trafficBytes).value} {formatBytes(detail.trafficBytes).unit}</span></p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function CreateModal({ role, prefixes, subdomains, domain, onSuccess, onClose }) {
+      const defaultPrefix = (Array.isArray(prefixes) && prefixes.length > 0) ? prefixes[0] : "";
+      const adminSubs = subdomains || [];
+      const [mode, setMode] = useState("single"); // "single" | "bulk"
+      const [prefix, setPrefix] = useState(defaultPrefix);
+      const [suffix, setSuffix] = useState("");
+      const [bulkStart, setBulkStart] = useState("");
+      const [bulkEnd, setBulkEnd] = useState("");
+      const [months, setMonths] = useState(1);
+      const PLANS = [{ v: 1, l: "۱ ماهه", gb: 30 }, { v: 2, l: "۲ ماهه", gb: 60 }, { v: 3, l: "۳ ماهه", gb: 90 }, { v: 6, l: "۶ ماهه", gb: 180 }];
+      const [selectedSubdomain, setSelectedSubdomain] = useState(adminSubs.length === 1 ? adminSubs[0] : "");
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState("");
+      const [bulkResult, setBulkResult] = useState(null);
+
+      const fullEmail = prefix + suffix.trim();
+
+      const bulkStart_ = parseInt(bulkStart), bulkEnd_ = parseInt(bulkEnd);
+      const bulkPreview = (() => {
+        const s = bulkStart_, e = bulkEnd_;
+        if (!prefix || isNaN(s) || isNaN(e) || s >= e || e - s > 9) return [];
+        return Array.from({ length: e - s + 1 }, (_, i) => prefix + (s + i));
+      })();
+
+      const submitSingle = async () => {
+        setLoading(true); setError("");
+        try {
+          const payload = { email: fullEmail, months: Number(months) };
+          if (selectedSubdomain) payload.subdomain = selectedSubdomain;
+          const r = await fetch(`${API_BASE}/api/admin/clients`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const d = await r.json();
+          if (d.ok) { onSuccess(); }
+          else { setError(d.error || "خطا در ایجاد حساب"); }
+        } catch { setError("خطا در اتصال"); }
+        setLoading(false);
+      };
+
+      const submitBulk = async () => {
+        setLoading(true); setError(""); setBulkResult(null);
+        try {
+          const payload = { prefix, start: Number(bulkStart), end: Number(bulkEnd), months: Number(months) };
+          if (selectedSubdomain) payload.subdomain = selectedSubdomain;
+          const r = await fetch(`${API_BASE}/api/admin/clients/bulk`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const d = await r.json();
+          if (d.ok) {
+            setBulkResult(d);
+            if (d.created && d.created.length > 0) { onSuccess(); }
+          } else { setError(d.error || "خطا در ایجاد حساب"); }
+        } catch { setError("خطا در اتصال"); }
+        setLoading(false);
+      };
+
+      const PrefixSelector = ({ className = "" }) => (
+        <div className={`flex items-center ${className}`}>
+          <span className="text-xs text-slate-400 ml-2">پیشوند:</span>
+          {Array.isArray(prefixes) && prefixes.length > 1 ? (
+            <select value={prefix} onChange={e => setPrefix(e.target.value)}
+              className="bg-indigo-500/20 border border-indigo-500/40 rounded-lg px-3 py-1.5 text-sm font-black text-indigo-300 focus:outline-none" dir="ltr">
+              {prefixes.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          ) : (
+            <span className="bg-indigo-500/20 border border-indigo-500/40 rounded-lg px-3 py-1.5 text-sm font-black text-indigo-300" dir="ltr">{prefix || "—"}</span>
+          )}
+        </div>
+      );
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-white text-base">افزودن حساب V2Ray</h3>
+              <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+
+            {/* Mode tabs */}
+            <div className="flex gap-1 mb-4 p-1 bg-slate-900/60 rounded-xl">
+              {[["single","تکی"],["bulk","گروهی"]].map(([m, label]) => (
+                <button key={m} onClick={() => { setMode(m); setError(""); setBulkResult(null); }}
+                  className="flex-1 py-1.5 rounded-lg text-sm font-bold transition"
+                  style={{ background: mode === m ? "linear-gradient(135deg,#6366f1,#7c3aed)" : "transparent", color: mode === m ? "white" : "#64748b" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {mode === "single" ? (
+              <>
+                <label className="text-xs text-slate-400 block mb-1.5">نام کاربری:</label>
+                <div className="flex items-center gap-0 mb-1">
+                  {Array.isArray(prefixes) && prefixes.length > 1 ? (
+                    <select value={prefix} onChange={e => setPrefix(e.target.value)}
+                      className="bg-indigo-500/20 border border-indigo-500/40 rounded-r-none rounded-l-xl px-3 py-2.5 text-sm font-black text-indigo-300 focus:outline-none" dir="ltr">
+                      {prefixes.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  ) : (
+                    <span className="bg-indigo-500/20 border border-indigo-500/40 rounded-r-none rounded-l-xl px-4 py-2.5 text-sm font-black text-indigo-300" dir="ltr">{prefix || "—"}</span>
+                  )}
+                  <input type="text" value={suffix} onChange={e => setSuffix(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && submitSingle()}
+                    placeholder="مثال: 5"
+                    className="flex-1 bg-slate-900/60 border border-slate-600/40 border-r-0 rounded-l-none rounded-r-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50" dir="ltr" />
+                </div>
+                {fullEmail && <p className="text-xs text-slate-500 mb-3" dir="ltr">نام کاربری: <span className="text-indigo-400 font-bold">{fullEmail}</span></p>}
+                {!fullEmail && <div className="mb-3"/>}
+
+                {adminSubs.length > 1 && (
+                  <div className="mb-3">
+                    <label className="text-xs text-slate-400 block mb-1">ساب‌دامین:</label>
+                    <select value={selectedSubdomain} onChange={e => setSelectedSubdomain(e.target.value)}
+                      className="w-full bg-slate-900/60 border border-slate-600/40 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50" dir="ltr">
+                      <option value="">انتخاب کنید...</option>
+                      {adminSubs.map(s => <option key={s} value={s}>{s === "@" ? domain : `${s}.${domain}`}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <label className="text-xs text-slate-400 block mb-1">پلن:</label>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {PLANS.map(p => (
+                    <button key={p.v} type="button" onClick={() => setMonths(p.v)}
+                      className={`py-2.5 rounded-xl text-xs font-bold border transition ${months === p.v ? "bg-indigo-600/30 border-indigo-500/60 text-indigo-300" : "bg-slate-900/40 border-slate-600/30 text-slate-400 hover:border-slate-500/50"}`}>
+                      <div>{p.l}</div>
+                      <div className="text-[10px] opacity-70 mt-0.5">{p.gb} گیگ</div>
+                    </button>
+                  ))}
+                </div>
+
+                {error && <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{error}</div>}
+                <div className="flex gap-2">
+                  <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-slate-700/40 border border-slate-600/30 text-slate-300">انصراف</button>
+                  <button onClick={submitSingle} disabled={loading || !fullEmail || !months || (adminSubs.length > 1 && !selectedSubdomain)} className="flex-1 py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                    {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"/> : "ایجاد حساب"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs text-slate-400">بازه شماره:</label>
+                  <PrefixSelector />
+                </div>
+                <div className="flex gap-2 mb-1">
+                  <div className="flex-1">
+                    <label className="text-xs text-slate-500 block mb-1">از</label>
+                    <input type="number" value={bulkStart} onChange={e => setBulkStart(e.target.value)}
+                      placeholder="25" min="1"
+                      className="w-full bg-slate-900/60 border border-slate-600/40 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50" dir="ltr" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-slate-500 block mb-1">تا</label>
+                    <input type="number" value={bulkEnd} onChange={e => setBulkEnd(e.target.value)}
+                      placeholder="30" min="1"
+                      className="w-full bg-slate-900/60 border border-slate-600/40 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50" dir="ltr" />
+                  </div>
+                </div>
+
+                {/* Preview */}
+                {bulkPreview.length > 0 && (
+                  <div className="mb-3 p-2.5 rounded-xl bg-slate-900/40 border border-slate-700/30">
+                    <p className="text-xs text-slate-500 mb-1.5">{toPersianNum(bulkPreview.length)} حساب ایجاد می‌شود:</p>
+                    <p className="text-xs text-indigo-400 font-bold" dir="ltr">{bulkPreview.join("، ")}</p>
+                  </div>
+                )}
+                {bulkPreview.length === 0 && !isNaN(bulkStart_) && !isNaN(bulkEnd_) && bulkStart_ >= bulkEnd_ && (
+                  <p className="text-xs text-red-400 mb-3">عدد شروع باید کمتر از پایان باشد</p>
+                )}
+                {bulkPreview.length === 0 && !isNaN(bulkStart_) && !isNaN(bulkEnd_) && bulkEnd_ - bulkStart_ > 9 && bulkStart_ < bulkEnd_ && (
+                  <p className="text-xs text-red-400 mb-3">حداکثر ۱۰ حساب در هر بار</p>
+                )}
+
+                {adminSubs.length > 1 && (
+                  <div className="mb-3">
+                    <label className="text-xs text-slate-400 block mb-1">ساب‌دامین:</label>
+                    <select value={selectedSubdomain} onChange={e => setSelectedSubdomain(e.target.value)}
+                      className="w-full bg-slate-900/60 border border-slate-600/40 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50" dir="ltr">
+                      <option value="">انتخاب کنید...</option>
+                      {adminSubs.map(s => <option key={s} value={s}>{s === "@" ? domain : `${s}.${domain}`}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <label className="text-xs text-slate-400 block mb-1">پلن هر حساب:</label>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {PLANS.map(p => (
+                    <button key={p.v} type="button" onClick={() => setMonths(p.v)}
+                      className={`py-2.5 rounded-xl text-xs font-bold border transition ${months === p.v ? "bg-indigo-600/30 border-indigo-500/60 text-indigo-300" : "bg-slate-900/40 border-slate-600/30 text-slate-400 hover:border-slate-500/50"}`}>
+                      <div>{p.l}</div>
+                      <div className="text-[10px] opacity-70 mt-0.5">{p.gb} گیگ</div>
+                    </button>
+                  ))}
+                </div>
+
+                {error && <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{error}</div>}
+
+                {bulkResult && (
+                  <div className="mb-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                    <p className="text-emerald-400 font-bold mb-1">✓ {toPersianNum(bulkResult.created.length)} حساب ایجاد شد</p>
+                    {bulkResult.skipped.length > 0 && <p className="text-amber-400">{toPersianNum(bulkResult.skipped.length)} تکراری رد شد: <span dir="ltr">{bulkResult.skipped.join("، ")}</span></p>}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-slate-700/40 border border-slate-600/30 text-slate-300">انصراف</button>
+                  <button onClick={submitBulk} disabled={loading || bulkPreview.length === 0 || !months || (adminSubs.length > 1 && !selectedSubdomain)} className="flex-1 py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                    {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto"/> : `ایجاد ${toPersianNum(bulkPreview.length)} حساب`}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Admin Dashboard (super admin) ─────────────────────────────────────────
+    // Sales period filters for "accounts sold per admin" (days; 0 = all time)
+    const SOLD_PERIODS = [
+      { v: 30, l: "این ماه" },
+      { v: 60, l: "۲ ماه اخیر" },
+      { v: 90, l: "۳ ماه اخیر" },
+      { v: 0, l: "همه تاریخ‌ها" },
+      { v: 13, l: "۱۳ روز اخیر" },
+      { v: 45, l: "۴۵ روز اخیر" },
+    ];
+    const soldPeriodLabel = (days) => {
+      if (!days) return "همه تاریخ‌ها";
+      const preset = SOLD_PERIODS.find(p => p.v === days);
+      return preset ? preset.l : `${toPersianNum(days)} روز اخیر`;
+    };
+
+    function TrafficSummaryDashboard({ adminUser, clients, loading, onRefresh, onLogout }) {
+      const [resetConfirm, setResetConfirm] = React.useState(null);
+      const [resetDone, setResetDone] = React.useState(null);
+      const [resetError, setResetError] = React.useState(null);
+      const [resetting, setResetting] = React.useState(false);
+      const [adminRoles, setAdminRoles] = React.useState([]);
+      const [salesData, setSalesData] = React.useState(null);
+      const [showBackups, setShowBackups] = React.useState(false);
+      const [backups, setBackups] = React.useState([]);
+      const [backupsLoading, setBackupsLoading] = React.useState(false);
+      const [soldDays, setSoldDays] = React.useState(30);
+      const [soldCustomDays, setSoldCustomDays] = React.useState("");
+      const [soldStats, setSoldStats] = React.useState(null);
+      const [soldLoading, setSoldLoading] = React.useState(false);
+
+      React.useEffect(() => {
+        fetch(`${API_BASE}/api/admin/admin-users`)
+          .then(r => r.json())
+          .then(d => { if (d.ok) setAdminRoles(d.admins); })
+          .catch(() => {});
+        fetch(`${API_BASE}/api/admin`)
+          .then(r => r.json())
+          .then(d => { if (d.groups) setSalesData(d.groups); })
+          .catch(() => {});
+      }, []);
+
+      React.useEffect(() => {
+        setSoldLoading(true);
+        fetch(`${API_BASE}/api/admin/sold-stats?days=${soldDays}`, { credentials: "include" })
+          .then(r => r.json())
+          .then(d => { if (d.ok) setSoldStats(d); })
+          .catch(() => {})
+          .finally(() => setSoldLoading(false));
+      }, [soldDays]);
+
+      const fetchBackups = async () => {
+        setBackupsLoading(true);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/backups`);
+          const d = await r.json();
+          if (d.ok) setBackups(d.backups || []);
+        } catch {}
+        setBackupsLoading(false);
+      };
+
+      const [syncing, setSyncing] = React.useState(false);
+      const [syncResult, setSyncResult] = React.useState(null);
+      const handleSyncTraffic = async () => {
+        setSyncing(true); setSyncResult(null);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/sync-traffic-to-cdn`, { method: "POST" });
+          const d = await r.json();
+          if (d.ok) setSyncResult(`${d.synced} کاربر همگام‌سازی شد`);
+          else setSyncResult(`خطا: ${d.error}`);
+        } catch (e) { setSyncResult(`خطا: ${e.message}`); }
+        setSyncing(false);
+      };
+
+      const downloadBackup = (name) => {
+        const a = document.createElement("a");
+        a.href = `${API_BASE}/api/admin/backup-download?file=${encodeURIComponent(name)}`;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      const handleReset = async (username) => {
+        setResetting(true); setResetError(null);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/reset-password`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+          });
+          const d = await r.json();
+          if (d.ok) { setResetDone(username); setResetConfirm(null); }
+          else { setResetError(d.error || "خطا در بازنشانی"); }
+        } catch { setResetError("خطا در اتصال"); }
+        setResetting(false);
+      };
+
+      const admins = adminRoles.filter(a => a.username !== "admin");
+
+      // Calculate totals
+      const totalSoldGB = salesData ? Object.values(salesData).reduce((s, v) => s + (v.soldGB || 0), 0) : 0;
+      const totalUsedGB = salesData ? Object.values(salesData).reduce((s, v) => s + (v.usedGB || 0), 0) : 0;
+      const totalPrice = salesData ? Object.values(salesData).reduce((s, v) => s + (v.totalPrice || 0), 0) : 0;
+      const formatPrice = (p) => p >= 1000000 ? toPersianNum((p / 1000000).toFixed(1)) + "M" : p >= 1000 ? toPersianNum(Math.round(p / 1000)) + "K" : toPersianNum(p);
+      const totalClients = salesData ? Object.values(salesData).reduce((s, v) => s + (v.clients || 0), 0) : 0;
+
+      return (
+        <div style={{ animation: "fadeUp .3s ease-out" }}>
+          <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 backdrop-blur p-4 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs text-slate-400 mb-0.5">داشبورد مدیریت</p>
+                <p className="font-black text-indigo-300">مدیر</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleSyncTraffic} disabled={syncing} className="text-xs px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition disabled:opacity-50" title="همگام‌سازی ترافیک N به CDN">
+                  {syncing ? "..." : syncResult || "Sync N→CDN"}
+                </button>
+                <button onClick={() => { setShowBackups(true); fetchBackups(); }} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition">بکاپ DB</button>
+                <button onClick={onRefresh} disabled={loading} className="text-xs px-3 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-300 hover:bg-slate-700/60 transition">
+                  {loading ? <span className="w-3 h-3 border border-slate-500 border-t-slate-300 rounded-full animate-spin inline-block"/> : "بروزرسانی"}
+                </button>
+                <button onClick={onLogout} className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition">خروج</button>
+              </div>
+            </div>
+
+            {/* Total summary */}
+            <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-bold text-emerald-300">مجموع</span>
+                <div className="flex gap-2 flex-wrap justify-end">
+                  <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">{toPersianNum(totalClients)} کاربر</span>
+                  <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">{toPersianNum(Math.round(totalUsedGB))} گیگ مصرف</span>
+                  {totalPrice > 0 && <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">{formatPrice(totalPrice)} تومان</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Per-admin sales */}
+            {salesData && (
+              <div className="space-y-2 mb-4">
+                {Object.entries(salesData).sort((a, b) => b[1].usedGB - a[1].usedGB).map(([admin, data]) => {
+                  const usedPct = data.soldGB > 0 ? Math.min(100, Math.round((data.usedGB / data.soldGB) * 100)) : 0;
+                  return (
+                  <div key={admin} className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-3">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-sm font-bold text-white">{admin}</span>
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        <span className="text-xs text-slate-400">{toPersianNum(data.clients)} کاربر</span>
+                        <span className="text-xs text-amber-400 font-bold">{toPersianNum(Math.round(data.usedGB))} گیگ مصرف</span>
+                        {data.totalPrice > 0 && <span className="text-xs text-emerald-400 font-bold">{formatPrice(data.totalPrice)} ت</span>}
+                      </div>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${usedPct > 80 ? "bg-red-500" : usedPct > 50 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${usedPct}%` }}/>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Orders sold per admin (new accounts + renewals, weighted by plan months) */}
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur p-4 mb-4">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <p className="text-xs text-emerald-400/70">تعداد سفارش‌های هر مدیر (فروش + تمدید)</p>
+              <div className="flex items-center gap-1.5">
+                <select value={SOLD_PERIODS.some(p => p.v === soldDays) ? soldDays : "custom"} onChange={e => {
+                    if (e.target.value !== "custom") setSoldDays(Number(e.target.value));
+                  }}
+                  className="bg-slate-800/40 border border-slate-700/40 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500/50 transition">
+                  {SOLD_PERIODS.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
+                  <option value="custom">سفارشی</option>
+                </select>
+                <input type="number" min="1" value={soldCustomDays} onChange={e => setSoldCustomDays(e.target.value)}
+                  placeholder="روز" dir="ltr"
+                  className="w-14 bg-slate-800/40 border border-slate-700/40 rounded-lg px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 transition" />
+                <button onClick={() => { const n = parseInt(soldCustomDays, 10); if (n > 0) setSoldDays(n); }}
+                  className="px-2 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition">اعمال</button>
+              </div>
+            </div>
+            {soldLoading && !soldStats ? (
+              <div className="text-center text-slate-600 py-4 text-xs">در حال بارگذاری...</div>
+            ) : soldStats ? (
+              <>
+                <div className="flex justify-between items-center mb-3 rounded-xl bg-slate-900/40 px-3 py-2">
+                  <span className="text-xs text-slate-400">مجموع سفارش‌ها ({soldPeriodLabel(soldDays)})</span>
+                  <span className="text-sm font-bold text-emerald-300">{toPersianNum(soldStats.total)}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {Object.entries(soldStats.counts).sort((a, b) => b[1] - a[1]).map(([admin, count]) => {
+                    const d = (soldStats.detail || {})[admin];
+                    return (
+                    <div key={admin} className="flex items-center justify-between rounded-lg border border-slate-700/30 bg-slate-800/30 px-3 py-1.5">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-white">{admin}</span>
+                        {d && d.transactions > 0 && (
+                          <span className="text-xs text-slate-500">
+                            {toPersianNum(d.created)} فروش جدید · {toPersianNum(d.renewed)} تمدید
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${count > 0 ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-700/40 text-slate-500"}`}>{toPersianNum(count)} سفارش</span>
+                    </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-600 mt-3">
+                  هر ماه از پلن یک سفارش حساب می‌شود (پلن ۳ ماهه = ۳ سفارش) و تمدید هم مثل فروش جدید شمرده می‌شود.
+                  {soldStats.trackingStartedAt ? ` آمار از ${new Date(soldStats.trackingStartedAt).toLocaleDateString("fa-IR")}.` : ""}
+                </p>
+              </>
+            ) : (
+              <div className="text-center text-slate-600 py-4 text-xs">داده‌ای موجود نیست</div>
+            )}
+          </div>
+
+          {/* Password Reset Panel */}
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 backdrop-blur p-4">
+            <p className="text-xs text-amber-400/70 mb-3">بازنشانی رمز عبور مدیران</p>
+            {resetError && <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{resetError}</div>}
+            <div className="space-y-2">
+              {admins.map(a => (
+                <div key={a.username} className="flex items-center justify-between rounded-xl border border-slate-700/30 bg-slate-800/30 px-3 py-2">
+                  <span className="text-sm text-white">{a.username}</span>
+                  {resetDone === a.username ? (
+                    <span className="text-xs text-emerald-400">بازنشانی شد</span>
+                  ) : resetConfirm === a.username ? (
+                    <div className="flex gap-2">
+                      <button onClick={() => handleReset(a.username)} disabled={resetting}
+                        className="text-xs px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition disabled:opacity-50">
+                        {resetting ? "..." : "تأیید"}
+                      </button>
+                      <button onClick={() => setResetConfirm(null)} className="text-xs px-2 py-1 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-400">لغو</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setResetDone(null); setResetError(null); setResetConfirm(a.username); }}
+                      className="text-xs px-3 py-1 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-300 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-300 transition">
+                      بازنشانی رمز
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <AdminUsersPanel />
+        </div>
+      );
+    }
+
+    // ── Subdomain Panel (per admin, multiple subdomains) ────────────────────
+    function SubdomainPanel() {
+      const [admins, setAdmins] = React.useState([]);
+      const [domain, setDomain] = React.useState("");
+      const [loading, setLoading] = React.useState(true);
+      const [saving, setSaving] = React.useState(null);
+      const [adding, setAdding] = React.useState(null); // username being added to
+      const [addValue, setAddValue] = React.useState("");
+      const [msg, setMsg] = React.useState("");
+
+      const fetchData = () => {
+        fetch(`${API_BASE}/api/admin/subdomains`)
+          .then(r => r.json())
+          .then(d => { if (d.ok) { setAdmins(d.admins); setDomain(d.domain); } })
+          .catch(() => {})
+          .finally(() => setLoading(false));
+      };
+      React.useEffect(fetchData, []);
+
+      const handleAdd = async (username) => {
+        if (!addValue.trim()) return;
+        setSaving(username);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/subdomains`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, subdomain: addValue.trim() }),
+          });
+          const d = await r.json();
+          if (d.ok) { setMsg("ذخیره شد"); setTimeout(() => setMsg(""), 2000); fetchData(); }
+        } catch {}
+        setSaving(null); setAdding(null); setAddValue("");
+      };
+
+      const handleRemove = async (username, subdomain) => {
+        setSaving(username);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/subdomain-remove`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, subdomain }),
+          });
+          const d = await r.json();
+          if (d.ok) { setMsg("حذف شد"); setTimeout(() => setMsg(""), 2000); fetchData(); }
+        } catch {}
+        setSaving(null);
+      };
+
+      const prefixLabel = (p) => {
+        if (p === null) return "همه";
+        if (!p || p.length === 0) return "سایرین";
+        return p.join("، ");
+      };
+
+      return (
+        <div className="rounded-2xl border border-teal-500/20 bg-teal-500/5 backdrop-blur p-4 mt-4">
+          <p className="text-xs text-teal-400/70 mb-1 font-bold">مدیریت ساب‌دامین ادمین‌ها</p>
+          <p className="text-xs text-slate-500 mb-3">هر ادمین می‌تواند چند ساب‌دامین داشته باشد — هنگام ساخت اکانت انتخاب می‌شود</p>
+          {msg && <div className="mb-2 text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">{msg}</div>}
+          {loading ? <p className="text-xs text-slate-500">در حال بارگذاری...</p> : (
+            <div className="space-y-2">
+              {admins.map(a => (
+                <div key={a.username} className="rounded-xl border border-slate-700/30 bg-slate-800/30 px-3 py-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white">{a.username}</span>
+                      <span className="text-xs text-slate-500">({prefixLabel(a.prefixes)})</span>
+                    </div>
+                    <button onClick={() => { setAdding(a.username); setAddValue(""); }}
+                      className="text-xs px-2 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 hover:bg-teal-500/20 transition">
+                      تنظیم
+                    </button>
+                  </div>
+
+                  {/* Show existing subdomains */}
+                  {(a.subdomains && a.subdomains.length > 0) ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {a.subdomains.map(sub => (
+                        <div key={sub} className="flex items-center gap-1 bg-teal-500/10 border border-teal-500/20 rounded-lg px-2 py-1">
+                          <span className="text-xs text-teal-300 font-bold" dir="ltr">{sub === "@" ? `${domain} (پیش‌فرض)` : `${sub}.${domain}`}</span>
+                          <button onClick={() => handleRemove(a.username, sub)} disabled={saving === a.username}
+                            className="text-xs text-red-400 hover:text-red-300 mr-0.5 disabled:opacity-50">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-600 mt-1" dir="ltr">{domain} (پیش‌فرض)</p>
+                  )}
+
+                  {/* Add subdomain input */}
+                  {adding === a.username && (
+                    <div className="flex items-center gap-1 mt-2">
+                      <div className="flex-1 flex items-center bg-slate-900/60 border border-teal-500/40 rounded-lg overflow-hidden">
+                        <input type="text" value={addValue} onChange={e => setAddValue(e.target.value.toLowerCase().replace(/[^a-z0-9@-]/g, ""))}
+                          placeholder="ساب‌دامین جدید"
+                          className="flex-1 bg-transparent px-2 py-1 text-xs text-white focus:outline-none" dir="ltr" autoFocus
+                          onKeyDown={e => { if (e.key === "Enter") handleAdd(a.username); if (e.key === "Escape") { setAdding(null); setAddValue(""); } }} />
+                        <span className="text-xs text-slate-500 px-1">.{domain}</span>
+                      </div>
+                      <button onClick={() => handleAdd(a.username)} disabled={saving === a.username || !addValue.trim()}
+                        className="text-xs px-2 py-1 rounded-lg bg-teal-500/20 border border-teal-500/30 text-teal-300 font-bold disabled:opacity-50">
+                        {saving === a.username ? "..." : "افزودن"}
+                      </button>
+                      <button onClick={() => { setAdding(null); setAddValue(""); }}
+                        className="text-xs px-2 py-1 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-400">لغو</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <p className="text-xs text-slate-600 mt-1">پیش‌فرض: {domain} — ادمین‌هایی که ساب‌دامین ندارند از دامین اصلی استفاده می‌کنند</p>
+            </div>
+          )}
+
+          {/* Backup Modal */}
+          {showBackups && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowBackups(false)}>
+              <div className="bg-slate-800 border border-amber-500/30 rounded-2xl p-5 w-full max-w-md max-h-[70vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-amber-300 text-sm">بکاپ‌های دیتابیس x-ui</h3>
+                  <button onClick={() => setShowBackups(false)} className="text-slate-400 hover:text-white text-lg">&times;</button>
+                </div>
+                {backupsLoading ? (
+                  <div className="text-center py-6"><span className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin inline-block"/></div>
+                ) : backups.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">هنوز بکاپی وجود ندارد</p>
+                ) : (
+                  <div className="space-y-2">
+                    {backups.map(b => {
+                      const d = new Date(b.mtime);
+                      const dateStr = d.toLocaleDateString("fa-IR") + " " + d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+                      const sizeKB = (b.size / 1024).toFixed(0);
+                      return (
+                        <div key={b.name} className="flex items-center justify-between rounded-xl border border-slate-600/30 bg-slate-700/30 px-3 py-2">
+                          <div>
+                            <p className="text-xs text-slate-300 font-mono" dir="ltr">{b.name}</p>
+                            <p className="text-xs text-slate-500">{dateStr} — {sizeKB} KB</p>
+                          </div>
+                          <button onClick={() => downloadBackup(b.name)} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition font-bold">دانلود</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-xs text-slate-600 mt-3 text-center">بکاپ هر ۲ ساعت — نگهداری ۷۲ ساعت اخیر</p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ── Admin Dashboard ───────────────────────────────────────────────────────
+    function AdminDashboard({ adminUser, clients, loading, onRefresh, onLogout, onBack, onDelete, onQR, onSub }) {
+      const [deleteConfirm, setDeleteConfirm] = useState(null);
+      const [deleting, setDeleting] = useState(null);
+      const [showCreate, setShowCreate] = useState(false);
+      const [loadingLinks, setLoadingLinks] = useState(null);
+      const [search, setSearch] = useState("");
+      const [renewEmail, setRenewEmail] = useState(null);
+      const [renewMonths, setRenewMonths] = useState(1);
+      const [renewing, setRenewing] = useState(false);
+      const RENEW_PLANS = [{ v: 1, l: "۱ ماهه", gb: 30 }, { v: 2, l: "۲ ماهه", gb: 60 }, { v: 3, l: "۳ ماهه", gb: 90 }, { v: 6, l: "۶ ماهه", gb: 180 }];
+      const [togglingEmail, setTogglingEmail] = useState(null);
+      const [switchingInbound, setSwitchingInbound] = useState(null);
+
+      const handleToggle = async (email, currentEnable) => {
+        setTogglingEmail(email);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/client-toggle`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, enable: !currentEnable }),
+          });
+          const d = await r.json();
+          if (d.ok) { onRefresh(); }
+          else { alert(d.error || "خطا در تغییر وضعیت"); }
+        } catch { alert("خطا در اتصال"); }
+        setTogglingEmail(null);
+      };
+
+      const handleDelete = async (email) => {
+        setDeleting(email);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/client`, {
+            method: "DELETE", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          const d = await r.json();
+          if (d.ok) { setDeleteConfirm(null); onRefresh(); }
+          else { alert(d.error || "خطا در حذف"); }
+        } catch { alert("خطا در اتصال"); }
+        setDeleting(null);
+      };
+
+      const handleRenew = async (email) => {
+        setRenewing(true);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/client-renew`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, months: renewMonths }),
+          });
+          const d = await r.json();
+          if (d.ok) { setRenewEmail(null); onRefresh(); }
+          else { alert(d.error || "خطا در تمدید حساب"); }
+        } catch { alert("خطا در اتصال"); }
+        setRenewing(false);
+      };
+
+      const handleSwitchInbound = async (email, currentRemark) => {
+        const target = currentRemark === "N" ? "Arvan-CDN" : "N";
+        setSwitchingInbound(email);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/client-switch-inbound`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, targetInbound: target }),
+          });
+          const d = await r.json();
+          if (d.ok) { onRefresh(); }
+          else { alert(d.error || "خطا در تغییر اینباند"); }
+        } catch { alert("خطا در اتصال"); }
+        setSwitchingInbound(null);
+      };
+
+
+      const handleLinks = async (email) => {
+        setLoadingLinks(email);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/client-links?email=${encodeURIComponent(email)}`);
+          const d = await r.json();
+          if (d.ok) {
+            if (d.links.length > 0) onQR(d.links[0], email);
+          } else { alert(d.error || "خطا"); }
+        } catch { alert("خطا در اتصال"); }
+        setLoadingLinks(null);
+      };
+
+      const handleSub = async (email) => {
+        setLoadingLinks("sub_" + email);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/client-links?email=${encodeURIComponent(email)}`);
+          const d = await r.json();
+          if (d.ok) { onSub(d.subUrl, d.links, email); }
+          else { alert(d.error || "خطا"); }
+        } catch { alert("خطا در اتصال"); }
+        setLoadingLinks(null);
+      };
+
+      // Sales summary
+      const totalSoldGB = clients.reduce((s, c) => s + c.total, 0) / 1073741824;
+      const totalUsedBytes = clients.reduce((s, c) => s + (c.up || 0) + (c.down || 0), 0);
+      const totalUsedGB = totalUsedBytes / 1073741824;
+
+      // Filtered client list
+      const filtered = (() => {
+        const q = search.trim().toLowerCase();
+        const tokenMatch = q ? q.match(/secretsub\/([a-z0-9]+)/) : null;
+        const token = tokenMatch ? tokenMatch[1] : null;
+        const list = clients.filter(c => {
+          if (q) {
+            // Match email or comment (e.g. a real customer name an admin noted in x-ui directly)
+            // always; match subId only for sub-token searches (secretsub/xxx or 12+ hex chars)
+            if (c.email.toLowerCase().includes(q)) return true;
+            if (c.comment && c.comment.toLowerCase().includes(q)) return true;
+            const subQuery = token || (/^[a-f0-9]{12,}$/.test(q) ? q : null);
+            if (subQuery && c.subId && c.subId.toLowerCase().includes(subQuery)) return true;
+            return false;
+          }
+          return true;
+        });
+        if (q) {
+          // Sort by relevance: email starts-with first
+          list.sort((a, b) => {
+            const ae = a.email.toLowerCase(), be = b.email.toLowerCase();
+            const aStart = ae.startsWith(q) ? 0 : 1;
+            const bStart = be.startsWith(q) ? 0 : 1;
+            if (aStart !== bStart) return aStart - bStart;
+            return ae.localeCompare(be);
+          });
+        } else {
+          // Sort: N inbound first, then Arvan-CDN; within each group newest first (reverse order)
+          list.sort((a, b) => {
+            const aIsN = a.remark === "N" ? 0 : 1;
+            const bIsN = b.remark === "N" ? 0 : 1;
+            if (aIsN !== bIsN) return aIsN - bIsN;
+            return 0; // preserve original (reversed) order within same inbound
+          });
+          // Reverse within each inbound group for newest-first
+          const nClients = list.filter(c => c.remark === "N").reverse();
+          const cdnClients = list.filter(c => c.remark !== "N").reverse();
+          list.length = 0;
+          list.push(...nClients, ...cdnClients);
+        }
+        return list;
+      })();
+
+      return (
+        <div style={{ animation: "fadeUp .3s ease-out" }}>
+          {/* Header */}
+          <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 backdrop-blur p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs text-slate-400 mb-0.5">پنل مدیریت</p>
+                <p className="font-black text-indigo-300">{adminUser.username}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={onRefresh} disabled={loading} className="text-xs px-3 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-300 hover:bg-slate-700/60 transition">
+                  {loading ? <span className="w-3 h-3 border border-slate-500 border-t-slate-300 rounded-full animate-spin inline-block"/> : "بروزرسانی"}
+                </button>
+                <button onClick={onLogout} className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition">خروج</button>
+              </div>
+            </div>
+
+            {/* Sales summary */}
+            {clients.length > 0 && (
+              <div className="flex gap-3 justify-center">
+                <div className="rounded-lg bg-slate-900/40 px-4 py-2 text-center">
+                  <div className="text-xs text-slate-500">تعداد کاربران</div>
+                  <div className="text-sm font-bold text-white">{toPersianNum(clients.length)}</div>
+                </div>
+                <div className="rounded-lg bg-slate-900/40 px-4 py-2 text-center">
+                  <div className="text-xs text-slate-500">مصرف کل</div>
+                  <div className="text-sm font-bold text-amber-400">{toPersianNum(totalUsedGB.toFixed(1))} گیگ</div>
+                </div>
+                {adminUser.pricePerGB > 0 && (
+                  <div className="rounded-lg bg-slate-900/40 px-4 py-2 text-center">
+                    <div className="text-xs text-slate-500">هزینه مصرف</div>
+                    <div className="text-sm font-bold text-yellow-400">{toPersianNum(Math.round(totalUsedGB * adminUser.pricePerGB).toLocaleString())} تومان</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Search + Filter + Add button */}
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="جستجوی کاربر..."
+                className="w-full bg-slate-800/30 border border-slate-700/40 rounded-xl px-3.5 py-2.5 pr-9 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition" dir="ltr" style={{ textAlign: "left" }} />
+              {search && <button onClick={() => setSearch("")} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition text-lg leading-none" title="پاک کردن">&times;</button>}
+            </div>
+            <button onClick={() => setShowCreate(true)} className="px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1.5 border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400 transition whitespace-nowrap">
+              <span>+</span> افزودن
+            </button>
+          </div>
+
+          {/* Client count */}
+          <p className="text-xs text-slate-600 mb-2 px-1">
+            {search.trim() ? `${toPersianNum(filtered.length)} از ${toPersianNum(clients.length)} کاربر` : `${toPersianNum(clients.length)} کاربر`}
+            {loading && <span className="mr-2">در حال بروزرسانی...</span>}
+          </p>
+
+          {/* Client list */}
+          {filtered.length === 0 && !loading ? (
+            <div className="text-center text-slate-600 py-8 text-sm">{search.trim() ? "کاربری با این نام یافت نشد" : "کاربری یافت نشد"}</div>
+          ) : (
+            filtered.map((cl) => {
+              const isDelConfirm = deleteConfirm === cl.email;
+
+              return (
+                <div key={`${cl.email}_${cl.server}_${cl.remark}`} className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-3 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${cl.enable ? "bg-emerald-400" : "bg-red-400"}`}/>
+                      <span className="font-bold text-sm text-white" dir="ltr">{cl.email}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${cl.remark === "Arvan-CDN" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-600"}`}>{cl.remark === "Arvan-CDN" ? "CDN" : cl.port}</span>
+                      {cl.server === "iran2" && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">IR2</span>}
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap justify-end">
+                      <button onClick={() => handleToggle(cl.email, cl.enable)} disabled={togglingEmail === cl.email}
+                        className={`text-xs px-2 py-1 rounded-lg border transition disabled:opacity-50 ${cl.enable ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400" : "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-emerald-500/10 hover:border-emerald-500/20 hover:text-emerald-400"}`}
+                        title={cl.enable ? "غیرفعال کردن" : "فعال کردن"}>
+                        {togglingEmail === cl.email ? "..." : cl.enable ? "فعال" : "غیرفعال"}
+                      </button>
+                      {renewEmail === cl.email ? (
+                        <div className="flex gap-1 items-center">
+                          <select value={renewMonths} onChange={e => setRenewMonths(Number(e.target.value))}
+                            className="bg-slate-900/60 border border-emerald-500/30 rounded-lg px-1.5 py-1 text-xs text-white focus:outline-none" dir="ltr" autoFocus>
+                            {RENEW_PLANS.map(p => <option key={p.v} value={p.v}>{p.l} - {p.gb}GB</option>)}
+                          </select>
+                          <button onClick={() => handleRenew(cl.email)} disabled={renewing}
+                            className="text-xs px-2 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold disabled:opacity-50">
+                            {renewing ? "..." : "✓"}
+                          </button>
+                          <button onClick={() => setRenewEmail(null)}
+                            className="text-xs px-2 py-1 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-400">✕</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setRenewEmail(cl.email); setRenewMonths(1); }}
+                          className="text-xs px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition" title="تمدید حساب">
+                          تمدید
+                        </button>
+                      )}
+                      <button onClick={() => handleLinks(cl.email)} disabled={loadingLinks === cl.email}
+                        className="text-xs px-2 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/25 transition" title="QR کد">
+                        {loadingLinks === cl.email ? "..." : "QR"}
+                      </button>
+                      <button onClick={() => handleSub(cl.email)} disabled={loadingLinks === "sub_" + cl.email}
+                        className="text-xs px-2 py-1 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-300 hover:bg-slate-700/60 transition" title="اشتراک">
+                        {loadingLinks === "sub_" + cl.email ? "..." : "Sub"}
+                      </button>
+                      <button onClick={() => handleSwitchInbound(cl.email, cl.remark)} disabled={switchingInbound === cl.email}
+                        className={`text-xs px-2 py-1 rounded-lg border transition disabled:opacity-50 ${cl.remark === "Arvan-CDN" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-orange-500/10 hover:border-orange-500/20 hover:text-orange-400" : "bg-orange-500/10 border-orange-500/20 text-orange-400 hover:bg-emerald-500/10 hover:border-emerald-500/20 hover:text-emerald-400"}`}
+                        title={cl.remark === "Arvan-CDN" ? "انتقال به N" : "انتقال به CDN"}>
+                        {switchingInbound === cl.email ? "..." : cl.remark === "Arvan-CDN" ? "N" : "CDN"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Traffic usage */}
+                  {(() => {
+                    const used = (cl.up || 0) + (cl.down || 0);
+                    const usedGB = (used / 1073741824).toFixed(2);
+                    const totalGB = cl.total > 0 ? (cl.total / 1073741824).toFixed(1) : 0;
+                    const pct = cl.total > 0 ? Math.min(100, (used / cl.total) * 100) : 0;
+                    const barColor = pct > 90 ? "bg-red-500" : pct > 70 ? "bg-amber-500" : "bg-emerald-500";
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-slate-400">
+                            مصرف: <span className="text-white font-bold" dir="ltr">{toPersianNum(usedGB)}</span> گیگ
+                            {cl.total > 0 && <span className="text-slate-600"> / {toPersianNum(totalGB)} گیگ</span>}
+                            {cl.total === 0 && <span className="text-slate-600"> (نامحدود)</span>}
+                          </span>
+                          {cl.total > 0 && <span className={`font-bold ${pct > 90 ? "text-red-400" : pct > 70 ? "text-amber-400" : "text-emerald-400"}`}>{toPersianNum(pct.toFixed(0))}%</span>}
+                        </div>
+                        {cl.total > 0 && (
+                          <div className="w-full h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
+                            <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }}/>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })
+          )}
+
+          {showCreate && (
+            <CreateModal role={adminUser.role} prefixes={adminUser.prefixes} subdomains={adminUser.subdomains} domain={adminUser.domain} onClose={() => setShowCreate(false)} onSuccess={() => { setShowCreate(false); setTimeout(() => onRefresh(), 600); }} />
+          )}
+
+        </div>
+      );
+    }
+
+    // ── Admin Users Panel (admin role only) ──────────────────────────────────
+    function AdminUsersPanel() {
+      const [admins, setAdmins] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [newUser, setNewUser] = useState("");
+      const [newPrefixes, setNewPrefixes] = useState("");
+      const [newPrice, setNewPrice] = useState("");
+      const [adding, setAdding] = useState(false);
+      const [removing, setRemoving] = useState(null);
+      const [editingPrice, setEditingPrice] = useState(null);
+      const [editPriceVal, setEditPriceVal] = useState("");
+      const [error, setError] = useState("");
+      const [success, setSuccess] = useState("");
+
+      const load = async () => {
+        setLoading(true);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/admin-users`);
+          const d = await r.json();
+          if (d.ok) setAdmins(d.admins);
+        } catch {}
+        setLoading(false);
+      };
+
+      useEffect(() => { load(); }, []);
+
+      const handleAdd = async () => {
+        setError(""); setSuccess("");
+        const username = newUser.trim().toLowerCase();
+        if (!username) return;
+        const prefixes = newPrefixes.trim()
+          ? newPrefixes.toUpperCase().split(/[\s,،]+/).filter(p => /^[A-Z]$/.test(p))
+          : null;
+        setAdding(true);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/admin-users`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, prefixes, pricePerGB: Number(newPrice) || 0 }), credentials: "include",
+          });
+          const d = await r.json();
+          if (d.ok) { setSuccess(`ادمین "${username}" اضافه شد`); setNewUser(""); setNewPrefixes(""); setNewPrice(""); load(); }
+          else setError(d.error || "خطا");
+        } catch { setError("خطا در اتصال"); }
+        setAdding(false);
+      };
+
+      const handleRemove = async (username) => {
+        setError(""); setSuccess("");
+        setRemoving(username);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/admin-users`, {
+            method: "DELETE", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+          });
+          const d = await r.json();
+          if (d.ok) { setSuccess(`ادمین "${username}" حذف شد`); load(); }
+          else setError(d.error || "خطا");
+        } catch { setError("خطا در اتصال"); }
+        setRemoving(null);
+      };
+
+      const handlePriceUpdate = async (username) => {
+        setError(""); setSuccess("");
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/admin-users`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, pricePerGB: Number(editPriceVal) || 0 }), credentials: "include",
+          });
+          const d = await r.json();
+          if (d.ok) { setSuccess(`قیمت "${username}" بروز شد`); setEditingPrice(null); setEditPriceVal(""); load(); }
+          else setError(d.error || "خطا");
+        } catch { setError("خطا در اتصال"); }
+      };
+
+      const prefixLabel = (prefixes) => {
+        if (prefixes === null) return "همه کاربران";
+        if (!prefixes || prefixes.length === 0) return "سایر (catch-all)";
+        return `پیشوند: ${prefixes.join("، ")}`;
+      };
+
+      return (
+        <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 backdrop-blur p-4 mt-4">
+          <p className="text-xs text-purple-400/70 mb-3 font-bold">مدیریت ادمین‌ها</p>
+          {error && <div className="mb-2 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">{error}</div>}
+          {success && <div className="mb-2 text-xs px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">{success}</div>}
+
+          {/* Admin list */}
+          <div className="space-y-2 mb-4">
+            {loading ? <p className="text-xs text-slate-500">در حال بارگذاری...</p> : admins.map(a => (
+              <div key={a.username} className="rounded-xl border border-slate-700/30 bg-slate-800/30 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-bold text-white">{a.username}</span>
+                    {a.readonly && <span className="mr-2 text-xs text-amber-400/70">فقط خواندن</span>}
+                    <p className="text-xs text-slate-500 mt-0.5">{prefixLabel(a.prefixes)}</p>
+                  </div>
+                  <div className="flex gap-1 items-center">
+                    {!a.builtin ? (
+                      removing === a.username ? (
+                        <React.Fragment>
+                          <button onClick={() => handleRemove(a.username)} className="text-xs px-2 py-1 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 font-bold">تأیید حذف</button>
+                          <button onClick={() => setRemoving(null)} className="text-xs px-2 py-1 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-400">لغو</button>
+                        </React.Fragment>
+                      ) : (
+                        <button onClick={() => setRemoving(a.username)} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition">حذف</button>
+                      )
+                    ) : (
+                      <span className="text-xs text-slate-600">پیش‌فرض</span>
+                    )}
+                  </div>
+                </div>
+                {/* Price per GB */}
+                {!a.builtin && (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-xs text-slate-500">قیمت هر گیگ:</span>
+                    {editingPrice === a.username ? (
+                      <div className="flex gap-1 items-center">
+                        <input type="number" value={editPriceVal} onChange={e => setEditPriceVal(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") handlePriceUpdate(a.username); if (e.key === "Escape") { setEditingPrice(null); setEditPriceVal(""); } }}
+                          placeholder="تومان" className="w-20 bg-slate-900/60 border border-yellow-500/30 rounded-lg px-2 py-0.5 text-xs text-white focus:outline-none" dir="ltr" autoFocus />
+                        <button onClick={() => handlePriceUpdate(a.username)} className="text-xs px-1.5 py-0.5 rounded-lg bg-yellow-500/20 border border-yellow-500/30 text-yellow-300 font-bold">✓</button>
+                        <button onClick={() => { setEditingPrice(null); setEditPriceVal(""); }} className="text-xs px-1.5 py-0.5 rounded-lg bg-slate-700/40 border border-slate-600/30 text-slate-400">✕</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setEditingPrice(a.username); setEditPriceVal(String(a.pricePerGB || "")); }}
+                        className="text-xs px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/20 transition">
+                        {a.pricePerGB > 0 ? `${toPersianNum(a.pricePerGB.toLocaleString())} تومان` : "تنظیم نشده"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Add new admin */}
+          <div className="rounded-xl border border-slate-700/30 bg-slate-800/20 p-3">
+            <p className="text-xs text-slate-400 mb-2">افزودن ادمین جدید</p>
+            <div className="flex gap-2 mb-2">
+              <input type="text" value={newUser} onChange={e => setNewUser(e.target.value.toLowerCase())}
+                placeholder="نام کاربری (لاتین)"
+                className="flex-1 bg-slate-900/60 border border-slate-600/40 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500/50" dir="ltr" />
+            </div>
+            <div className="flex gap-2 mb-2">
+              <input type="text" value={newPrefixes} onChange={e => setNewPrefixes(e.target.value)}
+                placeholder="پیشوندها: A,B,C  (خالی = همه)"
+                className="flex-1 bg-slate-900/60 border border-slate-600/40 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500/50" dir="ltr" />
+            </div>
+            <div className="flex gap-2 mb-2">
+              <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)}
+                placeholder="قیمت هر گیگ (تومان)"
+                className="flex-1 bg-slate-900/60 border border-slate-600/40 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500/50" dir="ltr" />
+            </div>
+            <p className="text-xs text-slate-600 mb-2">پیشوند = اول ایمیل کاربر. مثال: A,B → کاربران A1، B5. خالی = همه کاربران</p>
+            <button onClick={handleAdd} disabled={adding || !newUser.trim()}
+              className="w-full py-1.5 rounded-lg text-xs font-bold bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition disabled:opacity-50">
+              {adding ? "..." : "افزودن ادمین"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Main App ──────────────────────────────────────────────────────────────
+    function App() {
+      const urlToken = new URLSearchParams(window.location.search).get("sub");
+      const [input, setInput] = useState(urlToken || "");
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState("");
+      const [client, setClient] = useState(null);
+      const [serverOnline, setServerOnline] = useState(null);
+      const [serverOffline, setServerOffline] = useState(false);
+      const [checking, setChecking] = useState(false);
+      const [migrating, setMigrating] = useState(false);
+      const [migrateResult, setMigrateResult] = useState(null);
+      const [copied, setCopied] = useState(false);
+      const [adminData, setAdminData] = useState(null);
+      const [subData, setSubData] = useState(null);
+      const inputRef = useRef(null);
+      const prevOnlineRef = useRef(null);
+
+      // Admin state
+      const [adminUser, setAdminUser] = useState(null);
+      const [adminView, setAdminView] = useState(false);
+      const [adminClients, setAdminClients] = useState([]);
+      const [adminLoading, setAdminLoading] = useState(false);
+      const [showAdminLogin, setShowAdminLogin] = useState(false);
+      const [adminTab, setAdminTab] = useState("app");
+      const [qrModal, setQrModal] = useState(null);
+      const [subModal, setSubModal] = useState(null);
+
+      const checkServer = useCallback(async () => {
+        setChecking(true);
+        try {
+          const r = await fetch(`${API_BASE}/api/status`, { signal: AbortSignal.timeout(8000) });
+          const d = await r.json();
+          const wasOnline = prevOnlineRef.current;
+          setServerOnline(d.online);
+          setServerOffline(d.offline === true);
+          if (wasOnline !== null && wasOnline !== d.online) {
+            if (d.online) { sendNotification("استارلینک VPN", "سرور آنلاین شد ✅"); }
+            else { sendNotification("استارلینک VPN", "سرور قطع شده است ⚠️"); }
+          }
+          prevOnlineRef.current = d.online;
+        } catch {
+          if (prevOnlineRef.current === true) { sendNotification("استارلینک VPN", "سرور قطع شده است ⚠️"); }
+          setServerOnline(false); setServerOffline(true); prevOnlineRef.current = false;
+        }
+        setChecking(false);
+      }, []);
+
+      useEffect(() => {
+        checkServer();
+        const iv = setInterval(checkServer, 60000);
+        return () => clearInterval(iv);
+      }, [checkServer]);
+
+      // Restore admin session on load
+      useEffect(() => {
+        fetch(`${API_BASE}/api/admin/clients`, { credentials: "include" })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => {
+            if (d && d.ok) {
+              setAdminUser({ username: d.username, role: d.role, prefixes: d.prefixes, subdomains: d.subdomains || [], domain: d.domain || "", pricePerGB: d.pricePerGB || 0 });
+              setAdminClients(d.clients);
+              setAdminView(true);
+            }
+          })
+          .catch(() => {});
+      }, []);
+
+      // Auto-search if ?sub=TOKEN is in URL
+      useEffect(() => {
+        if (urlToken) { fetchSub(urlToken); }
+      }, []);
+
+      const fetchAdminClients = async () => {
+        setAdminLoading(true);
+        try {
+          const r = await fetch(`${API_BASE}/api/admin/clients`, { credentials: "include" });
+          const d = await r.json();
+          if (d.ok) {
+            setAdminClients(d.clients);
+            if (d.pricePerGB !== undefined) setAdminUser(prev => prev ? { ...prev, pricePerGB: d.pricePerGB } : prev);
+          }
+        } catch {}
+        setAdminLoading(false);
+      };
+
+      const adminLogout = async () => {
+        await fetch(`${API_BASE}/api/admin/logout`, { method: "POST", credentials: "include" }).catch(() => {});
+        setAdminUser(null); setAdminView(false); setAdminClients([]);
+      };
+
+      const onAdminLoginSuccess = (user) => {
+        setAdminUser(user);
+        setShowAdminLogin(false);
+        setAdminView(true);
+        fetchAdminClients();
+      };
+
+      const fetchSub = async (token) => {
+        setLoading(true); setError(""); setClient(null); setMigrateResult(null); setCopied(false); setAdminData(null); setSubData(null);
+        try {
+          const r = await fetch(`${API_BASE}/api/sub?token=${token}`, { signal: AbortSignal.timeout(15000) });
+          const d = await r.json();
+          if (d.error) { setError("خطا: " + d.error); } else { setSubData(d); }
+        } catch { setError("خطا در اتصال به سرور"); }
+        setLoading(false);
+      };
+
+      const search = async () => {
+        const q = input.trim();
+        if (!q) return;
+        setLoading(true); setError(""); setClient(null); setMigrateResult(null); setCopied(false); setAdminData(null); setSubData(null);
+
+        const subMatch = q.match(/\/secretsub\/([a-zA-Z0-9]+)/);
+        if (subMatch) { await fetchSub(subMatch[1]); setLoading(false); return; }
+
+        const ql = q.toLowerCase();
+        const adminFilter = ql === "admin64" ? "all" : ql === "ramin" ? "ramin" : ql === "mostafa64" ? "mostafa" : ql === "danial" ? "danial" : null;
+        if (adminFilter) {
+          try {
+            const r = await fetch(`${API_BASE}/api/admin`, { signal: AbortSignal.timeout(15000) });
+            const d = await r.json();
+            if (d.error) { setError("خطا: " + d.error); } else { setAdminData({ ...d, filter: adminFilter }); }
+          } catch { setError("خطا در اتصال به سرور"); }
+          setLoading(false);
+          return;
+        }
+
+        try {
+          let email;
+          if (q.startsWith("vless://") || q.startsWith("ss://")) {
+            const parsed = parseLink(q);
+            if (!parsed) { setError("فرمت لینک نامعتبر است"); setLoading(false); return; }
+            email = parsed.email;
+          } else { email = q; }
+
+          const url = `${API_BASE}/api/client?email=${encodeURIComponent(email)}`;
+          const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+          if (r.ok) {
+            const d = await r.json();
+            if (d.error) { setError("کاربری با این مشخصات یافت نشد"); }
+            else { setClient(d); }
+          } else { setError("کاربری با این مشخصات یافت نشد"); }
+        } catch { setError("خطا در اتصال به سرور"); }
+        setLoading(false);
+      };
+
+      const fallbackCopy = (text) => {
+        const ta = document.createElement("textarea");
+        ta.value = text; ta.style.cssText = "position:fixed;left:-9999px";
+        document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+      };
+
+      const copyLink = (link) => {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+          } else { fallbackCopy(link); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+        } catch { fallbackCopy(link); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+      };
+
+      const migrate = async () => {
+        if (!client) return;
+        setMigrating(true); setMigrateResult(null);
+        try {
+          const r = await fetch(`${API_BASE}/api/migrate`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: client.email }), signal: AbortSignal.timeout(30000),
+          });
+          const d = await r.json();
+          setMigrateResult(d);
+        } catch { setMigrateResult({ error: "خطا در اتصال به سرور" }); }
+        setMigrating(false);
+      };
+
+      const canMigrate = client && !(client.remark === "Star" && client.port === 80);
+      const used = client ? client.up + client.down : 0;
+      const pct = client && client.total > 0 ? Math.min((used / client.total) * 100, 100) : 0;
+      const remaining = client ? Math.max(0, client.total - used) : 0;
+      const days = client ? daysLeft(client.expiryTime) : null;
+      const isDanger = pct > 95; const isWarn = pct > 80;
+
+      return (
+        <div dir="rtl" className="min-h-screen text-white" style={{ fontFamily: "Vazirmatn, Tahoma, system-ui", background: "linear-gradient(160deg, #0a0e1a 0%, #111827 40%, #0f172a 100%)" }}>
+          <div className="fixed inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(16,185,129,0.06) 0%, transparent 60%)" }} />
+
+          <div className="relative z-10 max-w-md mx-auto px-4 py-8">
+
+            {/* Logo & Title */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 8px 32px rgba(99,102,241,0.3)" }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <h1 className="text-xl font-black tracking-tight" style={{ background: "linear-gradient(to left, #c7d2fe, #e2e8f0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                پنل کاربری
+              </h1>
+              <p className="text-slate-500 text-xs mt-1">مشاهده وضعیت اکانت و مصرف ترافیک</p>
+            </div>
+
+
+            {/* Admin Dashboard View: V2Ray configs (x-ui) or NahalVPN app accounts */}
+            {adminView && adminUser && (
+              <div className="grid grid-cols-2 gap-2 mb-4 p-1 rounded-2xl bg-slate-900/50 border border-slate-700/40">
+                {[["app", "اپلیکیشن نهال"], ["xui", "کانفیگ‌های V2Ray"]].map(([k, l]) => (
+                  <button key={k} onClick={() => setAdminTab(k)}
+                    className={`py-2 rounded-xl text-sm font-bold transition ${adminTab === k ? "bg-indigo-600/30 text-indigo-200" : "text-slate-500 hover:text-slate-300"}`}>{l}</button>
+                ))}
+              </div>
+            )}
+            {adminView && adminUser && adminTab === "app" ? (
+              <AppAccountsPanel key={adminUser.username} readonly={adminUser.role === "admin"} />
+            ) : adminView && adminUser ? (
+              adminUser.role === "admin" ? (
+                <TrafficSummaryDashboard
+                  adminUser={adminUser}
+                  clients={adminClients}
+                  loading={adminLoading}
+                  onRefresh={fetchAdminClients}
+                  onLogout={adminLogout}
+                />
+              ) : (
+              <AdminDashboard
+                adminUser={adminUser}
+                clients={adminClients}
+                loading={adminLoading}
+                onRefresh={fetchAdminClients}
+                onLogout={adminLogout}
+                onBack={() => setAdminView(false)}
+                onDelete={() => fetchAdminClients()}
+                onQR={(link, email) => setQrModal({ link, email })}
+                onSub={(subUrl, links, email) => setSubModal({ subUrl, links, email })}
+              />
+              )
+            ) : null}
+
+            {/* Admin login button (when not in admin view) */}
+            {!adminView && (
+              <div className="text-center mt-6">
+                {adminUser ? (
+                  <button onClick={() => { setAdminView(true); fetchAdminClients(); }}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 transition px-3 py-1.5 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
+                    بازگشت به پنل مدیریت ({adminUser.username})
+                  </button>
+                ) : (
+                  <button onClick={() => setShowAdminLogin(true)}
+                    className="text-xs text-slate-600 hover:text-slate-400 transition">
+                    ورود مدیر
+                  </button>
+                )}
+              </div>
+            )}
+
+          </div>
+
+          {/* Modals */}
+          {showAdminLogin && <AdminLoginModal onSuccess={onAdminLoginSuccess} onClose={() => setShowAdminLogin(false)} />}
+          {qrModal && <QRModal link={qrModal.link} email={qrModal.email} onClose={() => setQrModal(null)} />}
+          {subModal && <SubModal subUrl={subModal.subUrl} links={subModal.links} email={subModal.email} onClose={() => setSubModal(null)} />}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+  </script>
+</body>
+</html>

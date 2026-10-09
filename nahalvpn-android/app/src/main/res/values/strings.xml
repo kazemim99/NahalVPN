@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NahalVPN</string>
+
+    <!-- Login -->
+    <string name="login_title">Sign in</string>
+    <string name="login_subtitle">Use the username and password from your reseller.</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="sign_in">Sign in</string>
+    <string name="error_invalid_credentials">Wrong username or password.</string>
+    <string name="error_too_many_attempts">Too many attempts. Try again in 15 minutes.</string>
+    <string name="error_device_limit">This account is already used on %1$d devices. Remove one to sign in here:</string>
+    <string name="remove_and_sign_in">Remove and sign in</string>
+    <string name="session_revoked">You were signed out on this device. Sign in again to continue.</string>
+
+    <!-- Home -->
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="state_idle">Not connected</string>
+    <string name="state_connecting">Connecting to %1$s…</string>
+    <string name="state_connected">Connected – %1$s</string>
+    <string name="state_reconnecting">Reconnecting to %1$s…</string>
+    <string name="state_reconnecting_blocked">Reconnecting – internet paused by the kill switch</string>
+    <string name="exit_ip">Your IP: %1$s</string>
+    <string name="via_protocol">Protocol: %1$s</string>
+    <string name="locations">Locations</string>
+    <string name="location_unavailable">Unavailable</string>
+    <string name="refresh">Refresh</string>
+
+    <!-- Failures -->
+    <string name="fail_all_protocols">Could not connect on this network. Check your internet connection and try again, or pick another location.</string>
+    <string name="fail_expired">Your subscription has expired. Ask your reseller to renew.</string>
+    <string name="fail_disabled">This account is disabled.</string>
+    <string name="fail_location">This location is temporarily unavailable. Pick another one.</string>
+    <string name="error_network">No connection to NahalVPN. Check your internet connection.</string>
+    <string name="vpn_permission_denied">NahalVPN needs the VPN permission to connect.</string>
+
+    <!-- Account -->
+    <string name="account">Account</string>
+    <string name="expires">Expires</string>
+    <string name="devices">Devices (%1$s of %2$s)</string>
+    <string name="this_device">This device</string>
+    <string name="remove">Remove</string>
+    <string name="sign_out">Sign out</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="kill_switch">Kill switch</string>
+    <string name="always_on_hint">For full protection, also turn on “Always-on VPN” and “Block connections without VPN” in Android settings.</string>
+    <string name="open_vpn_settings">Open VPN settings</string>
+
+    <!-- Update -->
+    <string name="update_available">Update available: %1$s</string>
+    <string name="update_install">Download and install</string>
+    <string name="update_rejected">The update was not installed: its signature or checksum did not match.</string>
+
+    <!-- Notification -->
+    <string name="notif_channel">VPN status</string>
+    <string name="notif_connected">Connected – %1$s</string>
+    <string name="notif_working">NahalVPN is working</string>
+
+    <string name="kill_switch_hint">If the connection drops, block the internet until NahalVPN reconnects.</string>
+    <string name="kill_switch_on">Kill switch on</string>
+    <string name="kill_switch_off">Kill switch off</string>
+    <string name="exit_ip_label">Your IP</string>
+    <string name="location_label">Location</string>
+    <string name="expired">Expired</string>
+    <string name="days_left">%1$s days left</string>
+    <string name="download">Download</string>
+    <string name="upload">Upload</string>
+    <string name="ping">Ping</string>
+    <string name="ping_gateway">Ping · gateway</string>
+    <string name="speed_test">Speed test</string>
+    <string name="failed">Failed</string>
+    <string name="speed_needs_vpn">Connect to test speed. Ping then measures the time to reach NahalVPN.</string>
+    <string name="protocol_label">Protocol</string>
+    <string name="protocol_auto">Automatic (recommended)</string>
+    <string name="protocol_auto_hint">VLESS first, then OpenVPN if your network blocks it</string>
+    <string name="protocol_vless_hint">Fastest; looks like normal web traffic</string>
+    <string name="protocol_udp_hint">Classic VPN; good on most networks</string>
+    <string name="protocol_tcp_hint">Slower, but gets through strict networks</string>
+    <string name="fail_protocol">Could not connect with %1$s on this network. Try another protocol or choose Automatic.</string>
+    <string name="language">Language</string>
+    <string name="change_password">Change password</string>
+    <string name="current_password">Current password</string>
+    <string name="new_password">New password</string>
+    <string name="pw_save">Save</string>
+    <string name="pw_cancel">Cancel</string>
+    <string name="password_changed">Password changed.</string>
+    <string name="error_current_password">Current password is wrong.</string>
+    <string name="error_password_short">The new password must be at least 4 characters.</string>
+    <string name="notice_title">Service notice</string>
+    <string name="notice_ok">OK</string>
+</resources>

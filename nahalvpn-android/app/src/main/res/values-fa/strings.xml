@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">نهال وی‌پی‌ان</string>
+
+    <!-- ورود -->
+    <string name="login_title">ورود</string>
+    <string name="login_subtitle">نام کاربری و رمزی را که از فروشنده گرفته‌اید وارد کنید.</string>
+    <string name="username">نام کاربری</string>
+    <string name="password">رمز عبور</string>
+    <string name="sign_in">ورود</string>
+    <string name="error_invalid_credentials">نام کاربری یا رمز عبور اشتباه است.</string>
+    <string name="error_too_many_attempts">تلاش‌های زیادی انجام شد. ۱۵ دقیقه دیگر دوباره امتحان کنید.</string>
+    <string name="error_device_limit">این حساب روی %1$d دستگاه فعال است. برای ورود در این دستگاه یکی را حذف کنید:</string>
+    <string name="remove_and_sign_in">حذف و ورود</string>
+    <string name="session_revoked">از حساب خود در این دستگاه خارج شدید. برای ادامه دوباره وارد شوید.</string>
+
+    <!-- خانه -->
+    <string name="connect">اتصال</string>
+    <string name="disconnect">قطع اتصال</string>
+    <string name="state_idle">متصل نیستید</string>
+    <string name="state_connecting">در حال اتصال به %1$s…</string>
+    <string name="state_connected">متصل – %1$s</string>
+    <string name="state_reconnecting">اتصال دوباره به %1$s…</string>
+    <string name="state_reconnecting_blocked">اتصال دوباره – اینترنت با کیل‌سوییچ متوقف است</string>
+    <string name="exit_ip">آی‌پی شما: %1$s</string>
+    <string name="via_protocol">پروتکل: %1$s</string>
+    <string name="locations">مکان‌ها</string>
+    <string name="location_unavailable">در دسترس نیست</string>
+    <string name="refresh">به‌روزرسانی</string>
+
+    <!-- خطاها -->
+    <string name="fail_all_protocols">روی این شبکه اتصال برقرار نشد. اینترنت خود را بررسی کنید و دوباره تلاش کنید یا مکان دیگری انتخاب کنید.</string>
+    <string name="fail_expired">اشتراک شما تمام شده است. برای تمدید با فروشنده تماس بگیرید.</string>
+    <string name="fail_disabled">این حساب غیرفعال است.</string>
+    <string name="fail_location">این مکان موقتاً در دسترس نیست. مکان دیگری انتخاب کنید.</string>
+    <string name="error_network">ارتباط با نهال برقرار نشد. اینترنت خود را بررسی کنید.</string>
+    <string name="vpn_permission_denied">برای اتصال، نهال به مجوز VPN نیاز دارد.</string>
+
+    <!-- حساب -->
+    <string name="account">حساب</string>
+    <string name="expires">تاریخ پایان</string>
+    <string name="devices">دستگاه‌ها (%1$s از %2$s)</string>
+    <string name="this_device">همین دستگاه</string>
+    <string name="remove">حذف</string>
+    <string name="sign_out">خروج از حساب</string>
+
+    <!-- تنظیمات -->
+    <string name="settings">تنظیمات</string>
+    <string name="kill_switch">کیل‌سوییچ</string>
+    <string name="always_on_hint">برای محافظت کامل، «VPN همیشه روشن» و «مسدود کردن اتصال‌های بدون VPN» را هم در تنظیمات اندروید روشن کنید.</string>
+    <string name="open_vpn_settings">باز کردن تنظیمات VPN</string>
+
+    <!-- به‌روزرسانی -->
+    <string name="update_available">نسخهٔ جدید: %1$s</string>
+    <string name="update_install">دریافت و نصب</string>
+    <string name="update_rejected">به‌روزرسانی نصب نشد: امضا یا کنترل‌سام آن مطابقت نداشت.</string>
+
+    <!-- اعلان -->
+    <string name="notif_channel">وضعیت VPN</string>
+    <string name="notif_connected">متصل – %1$s</string>
+    <string name="notif_working">نهال در حال کار است</string>
+
+    <string name="kill_switch_hint">اگر اتصال قطع شد، تا وصل شدن دوباره اینترنت مسدود بماند.</string>
+    <string name="kill_switch_on">کیل‌سوییچ روشن</string>
+    <string name="kill_switch_off">کیل‌سوییچ خاموش</string>
+    <string name="exit_ip_label">آی‌پی شما</string>
+    <string name="location_label">مکان</string>
+    <string name="expired">منقضی شده</string>
+    <string name="days_left">%1$s روز مانده</string>
+    <string name="download">دانلود</string>
+    <string name="upload">آپلود</string>
+    <string name="ping">پینگ</string>
+    <string name="ping_gateway">پینگ · درگاه</string>
+    <string name="speed_test">تست سرعت</string>
+    <string name="failed">ناموفق</string>
+    <string name="speed_needs_vpn">برای تست سرعت وصل شوید. پینگ در حالت قطع، زمان رسیدن به نهال را نشان می‌دهد.</string>
+    <string name="protocol_label">پروتکل</string>
+    <string name="protocol_auto">خودکار (پیشنهادی)</string>
+    <string name="protocol_auto_hint">اول VLESS و اگر شبکه آن را بست، OpenVPN</string>
+    <string name="protocol_vless_hint">سریع‌ترین؛ شبیه ترافیک عادی وب</string>
+    <string name="protocol_udp_hint">وی‌پی‌ان کلاسیک؛ مناسب بیشتر شبکه‌ها</string>
+    <string name="protocol_tcp_hint">کندتر، اما از شبکه‌های سخت‌گیر عبور می‌کند</string>
+    <string name="fail_protocol">اتصال با %1$s روی این شبکه برقرار نشد. پروتکل دیگری را امتحان کنید یا «خودکار» را انتخاب کنید.</string>
+    <string name="language">زبان</string>
+    <string name="change_password">تغییر رمز عبور</string>
+    <string name="current_password">رمز فعلی</string>
+    <string name="new_password">رمز جدید</string>
+    <string name="pw_save">ذخیره</string>
+    <string name="pw_cancel">انصراف</string>
+    <string name="password_changed">رمز عبور تغییر کرد.</string>
+    <string name="error_current_password">رمز فعلی اشتباه است.</string>
+    <string name="error_password_short">رمز جدید باید دست‌کم ۴ کاراکتر باشد.</string>
+    <string name="notice_title">اطلاعیه</string>
+    <string name="notice_ok">متوجه شدم</string>
+</resources>

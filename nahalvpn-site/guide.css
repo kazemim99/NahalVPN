@@ -1,0 +1,36 @@
+@font-face { font-family: Vazirmatn; src: url(fonts/Vazirmatn-Regular.ttf) format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url(fonts/Vazirmatn-Bold.ttf) format("truetype"); font-weight: 700; font-display: swap; }
+:root {
+  --pine: #135447; --root: #0b2e28; --pistachio: #a6ce39; --mist: #eef5f0; --saffron: #f2a93b;
+  --ink: #1f2e2a; --slate: #5e706b; --line: #d3dfd9; --card: #ffffff;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: Vazirmatn, Tahoma, sans-serif; color: var(--ink); background: var(--mist); line-height: 1.9; }
+a { color: var(--pine); font-weight: 700; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+header { background: var(--pine); color: #fff; padding: 22px 0 26px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: #fff; text-decoration: none; }
+.brand img { width: 34px; height: 34px; border-radius: 10px; }
+.lang { color: #cfe3d9; font-weight: 400; font-size: 15px; }
+header h1 { margin: 22px 0 4px; font-size: clamp(26px, 6vw, 36px); line-height: 1.4; }
+header p { margin: 0; color: #cfe3d9; }
+nav.toc { background: var(--card); border-radius: 18px; padding: 14px 18px; margin: 26px 0 8px; }
+nav.toc ol { margin: 0; padding-inline-start: 22px; columns: 2 220px; }
+nav.toc a { font-weight: 400; }
+main { padding-bottom: 30px; }
+section { background: var(--card); border-radius: 18px; padding: 18px 20px; margin-top: 16px; }
+h2 { font-size: 21px; margin: 0 0 8px; color: var(--root); }
+h3 { font-size: 17px; margin: 16px 0 4px; color: var(--root); }
+p, li { font-size: 16px; }
+ol.steps, ul { padding-inline-start: 22px; margin: 6px 0; }
+ol.steps li, ul li { margin: 4px 0; }
+.ui { background: var(--mist); border-radius: 6px; padding: 0 6px; font-weight: 700; color: var(--root); white-space: nowrap; }
+.note { background: #fdf3e2; border-inline-start: 4px solid var(--saffron); border-radius: 10px; padding: 10px 14px; color: #5b4316; font-size: 15px; margin: 10px 0 0; }
+dl.trouble { margin: 4px 0 0; }
+dl.trouble dt { font-weight: 700; color: var(--root); margin-top: 14px; }
+dl.trouble dd { margin: 2px 0 0; color: var(--ink); }
+footer { padding: 22px 0 34px; color: var(--slate); font-size: 14px; }
+:focus-visible { outline: 3px solid var(--pistachio); outline-offset: 2px; }
+html[lang="fa"] ol { list-style-type: persian; }

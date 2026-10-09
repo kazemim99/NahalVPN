@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NahalVPN Guide</title>
+<meta name="description" content="How to install, sign in, connect and troubleshoot the NahalVPN app on Android and Windows.">
+<meta name="theme-color" content="#135447">
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="./"><img src="img/icon.svg" alt="" width="34" height="34">NahalVPN</a>
+      <a class="lang" href="guide.html" lang="fa" dir="rtl">فارسی</a>
+    </div>
+    <h1>User guide</h1>
+    <p>From installing to connecting, and what to do if it does not connect.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#android">Install on Android</a></li>
+      <li><a href="#windows">Install on Windows</a></li>
+      <li><a href="#login">Sign in</a></li>
+      <li><a href="#connect">Connect</a></li>
+      <li><a href="#protocol">Choose a protocol</a></li>
+      <li><a href="#killswitch">Kill switch</a></li>
+      <li><a href="#devices">Devices and expiry</a></li>
+      <li><a href="#trouble">If it does not connect</a></li>
+    </ol>
+  </nav>
+
+  <section id="android">
+    <h2>Install on Android</h2>
+    <ol class="steps">
+      <li>On the <a href="./">download page</a>, tap <span class="ui">Download for Android</span>.</li>
+      <li>Open the downloaded file. If Android asks, allow installing from this source for your browser or file manager, then go back.</li>
+      <li>Tap <span class="ui">Install</span>, then open the app.</li>
+    </ol>
+    <p class="note">The app is in Persian by default. To switch to English, open <span class="ui">تنظیمات</span> (Settings) and change <span class="ui">زبان</span> (Language). If the normal file does not install, take the <b>armv7</b> (older phones) or <b>universal</b> file from "all files" on the download page.</p>
+  </section>
+
+  <section id="windows">
+    <h2>Install on Windows</h2>
+    <ol class="steps">
+      <li>On the <a href="./">download page</a>, click <span class="ui">Download for Windows</span>. You need 64-bit Windows 10 or 11.</li>
+      <li>Open the file. If Windows shows "Windows protected your PC", click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>.</li>
+      <li>When setup finishes, open NahalVPN from the Start menu.</li>
+    </ol>
+    <p class="note">On Windows, browsers and most apps go through the VPN. A few apps, such as some games, ignore the Windows proxy setting and do not go through it.</p>
+  </section>
+
+  <section id="login">
+    <h2>Sign in</h2>
+    <p>Get your username and password from your seller and enter them on the sign-in screen. Each account works on <b>one device</b> by default.</p>
+    <p>If the app says the account is active on another device, pick that device in the list and tap <span class="ui">Remove and sign in</span>. The other device is signed out.</p>
+  </section>
+
+  <section id="connect">
+    <h2>Connect</h2>
+    <ol class="steps">
+      <li>Choose a location (for example Germany).</li>
+      <li>Tap the large <span class="ui">Connect</span> button.</li>
+      <li>The first time, Android asks for permission to set up a VPN. Tap <span class="ui">OK</span>.</li>
+    </ol>
+    <p>Once connected, the top of the screen says "Connected". <span class="ui">Ping</span> shows the response time and <span class="ui">Speed test</span> shows download and upload speed. Both run only when you tap them.</p>
+    <p>To disconnect, tap the same button, which now says <span class="ui">Disconnect</span>.</p>
+  </section>
+
+  <section id="protocol">
+    <h2>Choose a protocol</h2>
+    <p>On the home screen, pick one from the <span class="ui">Protocol</span> list:</p>
+    <ul>
+      <li><b>Automatic (recommended):</b> tries VLESS first and switches to OpenVPN by itself if your network blocks it.</li>
+      <li><b>VLESS:</b> the fastest; the traffic looks like normal web browsing.</li>
+      <li><b>OpenVPN (UDP):</b> a classic VPN that works on most networks.</li>
+      <li><b>OpenVPN (TCP):</b> slower, but gets through strict networks.</li>
+    </ul>
+    <p>If you pick a protocol yourself, the app connects only with that one and does not switch to another.</p>
+  </section>
+
+  <section id="killswitch">
+    <h2>Kill switch</h2>
+    <p>With the <span class="ui">Kill switch</span> on, if the connection drops, the internet stays blocked until NahalVPN reconnects, so nothing leaks outside the VPN. Turn it on or off in <span class="ui">Settings</span>.</p>
+    <p>On Android, for full protection also turn on "Always-on VPN" and "Block connections without VPN" for NahalVPN in the phone's VPN settings. The <span class="ui">Open VPN settings</span> button in NahalVPN's settings takes you there.</p>
+  </section>
+
+  <section id="devices">
+    <h2>Devices and expiry</h2>
+    <p>Your subscription's end date is on the home screen and under <span class="ui">Account</span>. There is no data limit.</p>
+    <p>Under <span class="ui">Account</span> you see the devices signed in to your account. <span class="ui">Remove</span> signs a device out and frees its place for another one. To renew or get more devices, contact your seller.</p>
+  </section>
+
+  <section id="trouble">
+    <h2>If it does not connect</h2>
+    <dl class="trouble">
+      <dt>"Could not connect on this network"</dt>
+      <dd>Check that your internet works without the VPN. Set the protocol to <b>Automatic</b> or try <b>OpenVPN (TCP)</b>. On Wi-Fi, try once with mobile data.</dd>
+      <dt>"Could not connect with … on this network"</dt>
+      <dd>The protocol you chose is blocked on this network. Choose another protocol or <b>Automatic</b>.</dd>
+      <dt>"Wrong username or password"</dt>
+      <dd>Check upper and lower case and do not add spaces. If you forgot the password, your seller can make a new one.</dd>
+      <dt>"Too many attempts"</dt>
+      <dd>After several wrong passwords, sign-in is blocked for 15 minutes. Wait, or ask your seller for a new password.</dd>
+      <dt>"Your subscription has expired" or "This account is disabled"</dt>
+      <dd>Contact your seller to renew or re-enable it. After renewing, just tap Connect again.</dd>
+      <dt>"You were signed out on this device"</dt>
+      <dd>This device was removed from your account elsewhere. Sign in again.</dd>
+      <dt>"No connection to NahalVPN"</dt>
+      <dd>Your phone or computer is offline or the connection is very weak. Check it and try again. If another VPN is on, turn it off.</dd>
+      <dt>Android: the connection drops after a while</dt>
+      <dd>Turn off battery optimization for NahalVPN in the phone's battery settings so Android does not close it.</dd>
+      <dt>Windows: no internet after the app closed unexpectedly</dt>
+      <dd>Open NahalVPN again; the Windows proxy setting is put back automatically. If NahalVPN is open and the kill switch is on, being offline until it reconnects is on purpose; click Disconnect to get normal internet back.</dd>
+    </dl>
+  </section>
+</main>
+
+<footer class="wrap">
+  To renew, get a new password, or for anything this guide does not solve, contact your seller.
+</footer>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# This folder also holds unrelated server scripts, notes and backups that contain credentials.
+# Only the NahalVPN project folders below are tracked; everything else is ignored by default.
+/*
+!/.gitignore
+!/.github/
+!/nahalvpn-api/
+!/nahalvpn-android/
+!/nahalvpn-site/
+!/openspec/
+!/panel/
+
+# Panel: the old, undeployed server copy, and server-only secrets (see panel/secrets.example.json).
+/panel/server.js
+/panel/secrets.json
+
+# Build output and local machine files.
+node_modules/
+dist/
+build/
+.gradle/
+.kotlin/
+local.properties
+*.jks
+*.keystore
+/nahalvpn-site/apk/
+
+# Third-party engine binaries: fetched or built by the scripts in nahalvpn-android/tools (see its README).
+/nahalvpn-android/app/libs/libbox.aar
+/nahalvpn-android/desktop/appResources/windows/sing-box.exe

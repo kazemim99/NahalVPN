@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>دانلود نهال وی‌پی‌ان برای اندروید و ویندوز</title>
+<meta name="description" content="اپلیکیشن نهال وی‌پی‌ان برای اندروید و ویندوز: اتصال امن و پایدار با یک لمس.">
+<meta name="theme-color" content="#135447">
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<style>
+@font-face { font-family: Vazirmatn; src: url(fonts/Vazirmatn-Regular.ttf) format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url(fonts/Vazirmatn-Bold.ttf) format("truetype"); font-weight: 700; font-display: swap; }
+:root {
+  --pine: #135447; --root: #0b2e28; --pistachio: #a6ce39; --mist: #eef5f0; --saffron: #f2a93b;
+  --ink: #1f2e2a; --slate: #5e706b; --line: #d3dfd9; --card: #ffffff;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: Vazirmatn, Tahoma, sans-serif; color: var(--ink); background: var(--mist); line-height: 1.9; }
+a { color: inherit; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+/* Hero: the deep green of the brand, the real app on the side. */
+.hero { background: var(--pine); color: var(--mist); padding: 28px 0 0; overflow: hidden; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; }
+.brand img { width: 40px; height: 40px; border-radius: 12px; }
+.hero-grid { display: grid; gap: 28px; padding: 36px 0 0; align-items: end; }
+.hero h1 { margin: 0; font-size: clamp(30px, 7vw, 50px); line-height: 1.35; font-weight: 700; color: #fff; }
+.hero .lead { margin: 14px 0 26px; font-size: 18px; color: #cfe3d9; max-width: 34ch; }
+.cta { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; max-width: 380px;
+  background: var(--pistachio); color: var(--root); text-decoration: none; font-weight: 700; font-size: 20px;
+  padding: 16px 22px; border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.cta:focus-visible, summary:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.cta svg { width: 24px; height: 24px; flex: none; }
+.ctas { display: grid; gap: 10px; max-width: 380px; }
+.cta.alt { background: transparent; color: #fff; box-shadow: none; border: 2px solid rgba(255,255,255,.45); font-size: 18px; padding: 13px 22px; }
+.cta small { font-weight: 400; font-size: 14px; opacity: .8; }
+.platform { background: var(--card); border-radius: 18px; padding: 18px; }
+.platform h3 { margin: 0 0 6px; font-size: 18px; color: var(--root); }
+.platform p { margin: 0 0 10px; color: var(--slate); font-size: 15px; }
+.platform .steps li { background: var(--mist); }
+.dl { display: inline-block; font-weight: 700; color: var(--pine); }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; font-size: 14px; color: #cfe3d9; }
+.facts li { background: rgba(255,255,255,.08); padding: 3px 12px; border-radius: 999px; }
+.phone { justify-self: center; width: min(320px, 82vw); background: #0b2e28; border-radius: 36px 36px 0 0;
+  padding: 12px 12px 0; box-shadow: 0 -12px 40px rgba(0,0,0,.25); }
+.phone img { display: block; width: 100%; height: auto; border-radius: 26px 26px 0 0; }
+
+main { padding: 44px 0 20px; }
+h2 { font-size: 24px; margin: 0 0 18px; color: var(--root); }
+section + section { margin-top: 44px; }
+
+/* Installing is a real sequence, so the steps are numbered. */
+.steps { counter-reset: s; list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.steps li { counter-increment: s; position: relative; background: var(--card); border-radius: 18px; padding: 16px 64px 16px 18px; }
+.steps li::before { content: counter(s, persian); position: absolute; right: 16px; top: 16px; width: 34px; height: 34px;
+  border-radius: 50%; background: var(--pine); color: #fff; display: grid; place-items: center; font-weight: 700; }
+.steps b { display: block; color: var(--root); }
+.steps span { color: var(--slate); font-size: 15px; }
+
+.features { display: grid; gap: 12px; }
+.feature { background: var(--card); border-radius: 18px; padding: 18px; }
+.feature b { display: block; font-size: 17px; color: var(--root); margin-bottom: 2px; }
+.feature span { color: var(--slate); font-size: 15px; }
+
+.note { background: #fdf3e2; border-right: 4px solid var(--saffron); border-radius: 12px; padding: 12px 16px; color: #5b4316; font-size: 15px; }
+
+details { background: var(--card); border-radius: 18px; padding: 4px 18px; }
+summary { cursor: pointer; padding: 12px 0; font-weight: 700; color: var(--root); }
+.builds { list-style: none; margin: 0 0 12px; padding: 0; }
+.builds li { border-top: 1px solid var(--line); padding: 12px 0; }
+.builds a { font-weight: 700; color: var(--pine); }
+.builds small { display: block; color: var(--slate); }
+.hash { direction: ltr; text-align: left; font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--slate); word-break: break-all; }
+
+footer { padding: 26px 0 36px; color: var(--slate); font-size: 14px; }
+
+@media (min-width: 860px) {
+  .hero-grid { grid-template-columns: 1.1fr .9fr; padding-top: 48px; }
+  .hero-text { padding-bottom: 72px; }
+  .features { grid-template-columns: repeat(2, 1fr); }
+  .steps { grid-template-columns: repeat(2, 1fr); }
+  .platform .steps { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cta { transition: transform .15s ease; }
+  .cta:active { transform: scale(.98); }
+}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><img src="img/icon.svg" alt="" width="40" height="40">نهال وی‌پی‌ان</div>
+    <div class="hero-grid">
+      <div class="hero-text">
+        <h1>اتصال امن و پایدار،<br>با یک لمس.</h1>
+        <p class="lead">اپلیکیشن نهال برای اندروید و ویندوز. نام کاربری و رمز را از فروشنده‌تان بگیرید، وارد شوید و «اتصال» را بزنید.</p>
+        <div class="ctas" id="ctas">
+          <a class="cta" id="cta-android" href="apk/%%ARM64_FILE%%" download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+            دانلود برای اندروید <small>%%ARM64_SIZE_FA%% مگابایت</small>
+          </a>
+          <a class="cta alt" id="cta-windows" href="win/%%MSI_FILE%%" download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+            دانلود برای ویندوز <small>%%MSI_SIZE_FA%% مگابایت</small>
+          </a>
+        </div>
+        <ul class="facts">
+          <li>نسخهٔ %%VERSION_FA%%</li>
+          <li>اندروید ۶ به بالا</li>
+          <li>ویندوز ۱۰ و ۱۱ (۶۴ بیتی)</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <picture>
+          <source srcset="img/app-connected.webp" type="image/webp">
+          <img src="img/app-connected.jpg" width="720" height="767" alt="صفحهٔ اصلی اپ نهال: متصل به آلمان">
+        </picture>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section aria-labelledby="install">
+    <h2 id="install">نصب</h2>
+    <p>راهنمای کامل ورود، انتخاب پروتکل و رفع مشکل: <a class="dl" href="guide.html">راهنمای نهال</a> (<a class="dl" href="guide-en.html" lang="en">English</a>)</p>
+    <div class="features">
+      <div class="platform" id="android">
+        <h3>اندروید</h3>
+        <ol class="steps">
+          <li><b>فایل را دانلود کنید</b><span>دکمهٔ «دانلود برای اندروید» را بزنید.</span></li>
+          <li><b>نصب را تأیید کنید</b><span>فایل دانلودشده را باز کنید. اگر اندروید پرسید، «اجازهٔ نصب از این منبع» را روشن کنید.</span></li>
+          <li><b>وارد شوید</b><span>نام کاربری و رمزی را که فروشنده داده وارد کنید.</span></li>
+          <li><b>«اتصال» را بزنید</b><span>اجازهٔ VPN را تأیید کنید. همین.</span></li>
+        </ol>
+      </div>
+      <div class="platform" id="windows">
+        <h3>ویندوز</h3>
+        <ol class="steps">
+          <li><b>فایل را دانلود کنید</b><span><a class="dl" href="win/%%MSI_FILE%%" download>دانلود نصب‌کنندهٔ ویندوز</a> (%%MSI_SIZE_FA%% مگابایت)</span></li>
+          <li><b>نصب کنید</b><span>فایل را باز کنید. اگر ویندوز پیام «<bdi dir="ltr">Windows protected your PC</bdi>» داد، «<bdi dir="ltr">More info</bdi>» و بعد «<bdi dir="ltr">Run anyway</bdi>» را بزنید.</span></li>
+          <li><b>وارد شوید</b><span>نهال را از منوی استارت باز کنید و نام کاربری و رمز را وارد کنید.</span></li>
+          <li><b>«اتصال» را بزنید</b><span>مرورگرها و بیشتر برنامه‌ها از VPN رد می‌شوند.</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="why">
+    <h2 id="why">چرا نهال</h2>
+    <div class="features">
+      <div class="feature"><b>خودش راه را پیدا می‌کند</b><span>اول VLESS را امتحان می‌کند و اگر شبکه آن را بست، خودکار به OpenVPN می‌رود. اگر بخواهید، پروتکل را خودتان انتخاب کنید.</span></div>
+      <div class="feature"><b>کیل‌سوییچ</b><span>اگر اتصال قطع شود، اینترنت تا وصل شدن دوباره متوقف می‌ماند تا چیزی بیرون از VPN نرود.</span></div>
+      <div class="feature"><b>بدون محدودیت حجم</b><span>هر چقدر لازم دارید استفاده کنید؛ تاریخ پایان اشتراک روی صفحهٔ اصلی پیداست.</span></div>
+      <div class="feature"><b>تست سرعت و پینگ</b><span>هر وقت خواستید، سرعت دانلود، آپلود و پینگ را همان‌جا ببینید.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="more">
+    <h2 id="more">نسخه‌های دیگر</h2>
+    <p class="note">این نسخهٔ آزمایشی است. با انتشار نسخهٔ نهایی ممکن است لازم شود برنامه را یک بار حذف و دوباره نصب کنید.</p>
+    <details>
+      <summary>همهٔ فایل‌ها، برای گوشی‌های قدیمی‌تر و ویندوز</summary>
+      <ul class="builds">
+        <li><a href="apk/%%ARM64_FILE%%" download>گوشی‌های جدید (arm64)</a><small>%%ARM64_SIZE_FA%% مگابایت؛ مناسب بیشتر گوشی‌های امروزی</small><div class="hash">SHA-256 %%ARM64_SHA%%</div></li>
+        <li><a href="apk/%%ARMV7_FILE%%" download>گوشی‌های قدیمی‌تر (armv7)</a><small>%%ARMV7_SIZE_FA%% مگابایت؛ اگر نسخهٔ بالا نصب نشد</small><div class="hash">SHA-256 %%ARMV7_SHA%%</div></li>
+        <li><a href="apk/%%UNIVERSAL_FILE%%" download>نسخهٔ همگانی</a><small>%%UNIVERSAL_SIZE_FA%% مگابایت؛ روی همهٔ گوشی‌ها نصب می‌شود، اما حجیم‌تر است</small><div class="hash">SHA-256 %%UNIVERSAL_SHA%%</div></li>
+        <li><a href="win/%%MSI_FILE%%" download>ویندوز ۱۰ و ۱۱ (۶۴ بیتی)</a><small>%%MSI_SIZE_FA%% مگابایت؛ نصب‌کنندهٔ MSI</small><div class="hash">SHA-256 %%MSI_SHA%%</div></li>
+      </ul>
+    </details>
+  </section>
+</main>
+
+<footer class="wrap">
+  <a href="guide.html">راهنمای استفاده</a> · برای پشتیبانی و تمدید اشتراک با فروشندهٔ خود در تماس باشید.
+</footer>
+<script>
+if (/Windows NT/.test(navigator.userAgent)) {
+  var w = document.getElementById("cta-windows"), a = document.getElementById("cta-android");
+  w.classList.remove("alt"); a.classList.add("alt"); w.parentNode.insertBefore(w, a);
+}
+</script>
+</body>
+</html>

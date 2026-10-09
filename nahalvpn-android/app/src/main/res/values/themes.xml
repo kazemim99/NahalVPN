@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window theme only; screens are drawn with Compose (see ui/Theme.kt). -->
+    <style name="Theme.NahalVPN" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/nahal_mist</item>
+        <item name="android:statusBarColor">@color/nahal_pine</item>
+    </style>
+</resources>

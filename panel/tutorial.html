@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>آموزش اتصال VPN</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Tahoma,Arial,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.8;padding:20px;max-width:700px;margin:0 auto}
+h1{text-align:center;color:#818cf8;margin:20px 0 30px;font-size:1.5em}
+h2{color:#a5b4fc;margin:25px 0 10px;font-size:1.1em;border-bottom:1px solid rgba(99,102,241,0.2);padding-bottom:8px}
+.step{background:rgba(30,41,59,0.8);border:1px solid rgba(99,102,241,0.15);border-radius:12px;padding:16px 20px;margin:12px 0}
+.step-num{display:inline-block;background:#4f46e5;color:#fff;width:28px;height:28px;border-radius:50%;text-align:center;line-height:28px;font-size:0.85em;margin-left:8px}
+a{color:#818cf8;text-decoration:none}
+a:hover{text-decoration:underline}
+.badge{display:inline-block;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:2px 10px;font-size:0.85em;direction:ltr}
+.platform{margin:20px 0}
+.platform-title{display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;background:rgba(30,41,59,0.6);border:1px solid rgba(99,102,241,0.15);border-radius:10px;font-size:1em;color:#c7d2fe}
+.platform-title:hover{background:rgba(30,41,59,0.9)}
+.platform-content{display:none;padding:10px 0}
+.platform.open .platform-content{display:block}
+.platform.open .platform-title{border-radius:10px 10px 0 0;border-bottom:none;background:rgba(30,41,59,0.9)}
+.platform.open .platform-content{border:1px solid rgba(99,102,241,0.15);border-top:none;border-radius:0 0 10px 10px;padding:14px 16px;background:rgba(30,41,59,0.4)}
+.arrow{transition:transform 0.2s;margin-right:auto;direction:ltr}
+.platform.open .arrow{transform:rotate(90deg)}
+.warn{background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:12px 16px;margin:15px 0;color:#fbbf24;font-size:0.9em}
+img{max-width:100%;border-radius:8px;margin:8px 0}
+.footer{text-align:center;margin-top:40px;padding:20px;color:#64748b;font-size:0.8em;border-top:1px solid rgba(99,102,241,0.1)}
+</style>
+</head>
+<body>
+
+<h1>آموزش اتصال VPN</h1>
+
+<div class="warn">
+⚠️ لطفاً ابتدا لینک کانفیگ خود را از ادمین دریافت کنید. لینک با <span class="badge">vless://</span> شروع می‌شود.
+</div>
+
+<h2>📱 اندروید</h2>
+
+<div class="platform open" onclick="this.classList.toggle('open')">
+<div class="platform-title">
+<span>v2rayNG (پیشنهادی)</span>
+<span class="arrow">▸</span>
+</div>
+<div class="platform-content">
+<div class="step"><span class="step-num">1</span> اپلیکیشن <b>v2rayNG</b> را از <a href="https://play.google.com/store/apps/details?id=com.v2ray.ang" target="_blank">گوگل پلی</a> یا <a href="https://github.com/2dust/v2rayNG/releases" target="_blank">GitHub</a> دانلود و نصب کنید.</div>
+<div class="step"><span class="step-num">2</span> لینک کانفیگ (<span class="badge">vless://...</span>) را کپی کنید.</div>
+<div class="step"><span class="step-num">3</span> وارد اپلیکیشن شوید. از منوی بالا روی <b>+</b> بزنید و <b>«وارد کردن از کلیپ بورد»</b> را انتخاب کنید.</div>
+<div class="step"><span class="step-num">4</span> روی دکمه <b>▶</b> (اتصال) در پایین صفحه بزنید.</div>
+<div class="step"><span class="step-num">5</span> اگر پیام دسترسی VPN ظاهر شد، تأیید کنید. ✅</div>
+</div>
+</div>
+
+<div class="platform" onclick="this.classList.toggle('open')">
+<div class="platform-title">
+<span>NekoBox</span>
+<span class="arrow">▸</span>
+</div>
+<div class="platform-content">
+<div class="step"><span class="step-num">1</span> <b>NekoBox</b> را از <a href="https://github.com/MatsuriDayo/NekoBoxForAndroid/releases" target="_blank">GitHub</a> دانلود کنید.</div>
+<div class="step"><span class="step-num">2</span> لینک کانفیگ را کپی کنید.</div>
+<div class="step"><span class="step-num">3</span> در اپ روی <b>+</b> → <b>Import from Clipboard</b> بزنید.</div>
+<div class="step"><span class="step-num">4</span> دکمه اتصال را بزنید. ✅</div>
+</div>
+</div>
+
+<h2>🍎 آیفون (iOS)</h2>
+
+<div class="platform" onclick="this.classList.toggle('open')">
+<div class="platform-title">
+<span>Streisand (پیشنهادی)</span>
+<span class="arrow">▸</span>
+</div>
+<div class="platform-content">
+<div class="step"><span class="step-num">1</span> اپلیکیشن <b>Streisand</b> را از <a href="https://apps.apple.com/app/streisand/id6450534064" target="_blank">App Store</a> دانلود کنید.</div>
+<div class="step"><span class="step-num">2</span> لینک کانفیگ (<span class="badge">vless://...</span>) را کپی کنید.</div>
+<div class="step"><span class="step-num">3</span> وارد اپ شوید. از بالا روی <b>+</b> بزنید و <b>«Add from Clipboard»</b> را انتخاب کنید.</div>
+<div class="step"><span class="step-num">4</span> روی دکمه اتصال بزنید و دسترسی VPN را تأیید کنید. ✅</div>
+</div>
+</div>
+
+<div class="platform" onclick="this.classList.toggle('open')">
+<div class="platform-title">
+<span>V2Box</span>
+<span class="arrow">▸</span>
+</div>
+<div class="platform-content">
+<div class="step"><span class="step-num">1</span> <b>V2Box</b> را از <a href="https://apps.apple.com/app/v2box-v2ray-client/id6446814690" target="_blank">App Store</a> نصب کنید.</div>
+<div class="step"><span class="step-num">2</span> لینک را کپی کنید.</div>
+<div class="step"><span class="step-num">3</span> در اپ روی <b>+</b> → <b>Import from Clipboard</b> بزنید.</div>
+<div class="step"><span class="step-num">4</span> اتصال را بزنید. ✅</div>
+</div>
+</div>
+
+<h2>💻 ویندوز</h2>
+
+<div class="platform" onclick="this.classList.toggle('open')">
+<div class="platform-title">
+<span>v2rayN</span>
+<span class="arrow">▸</span>
+</div>
+<div class="platform-content">
+<div class="step"><span class="step-num">1</span> <b>v2rayN</b> را از <a href="https://github.com/2dust/v2rayN/releases" target="_blank">GitHub</a> دانلود کنید (فایل <span class="badge">v2rayN-windows-64.zip</span>).</div>
+<div class="step"><span class="step-num">2</span> فایل zip را اکسترکت کنید و <b>v2rayN.exe</b> را اجرا کنید.</div>
+<div class="step"><span class="step-num">3</span> لینک کانفیگ را کپی کنید.</div>
+<div class="step"><span class="step-num">4</span> در برنامه از منوی بالا: <b>Servers → Import from clipboard</b></div>
+<div class="step"><span class="step-num">5</span> روی سرور راست‌کلیک → <b>Set as active server</b> → سپس از system tray روی آیکون راست‌کلیک → <b>System Proxy → Auto</b> ✅</div>
+</div>
+</div>
+
+<h2>🍏 مک (macOS)</h2>
+
+<div class="platform" onclick="this.classList.toggle('open')">
+<div class="platform-title">
+<span>V2RayXS</span>
+<span class="arrow">▸</span>
+</div>
+<div class="platform-content">
+<div class="step"><span class="step-num">1</span> <b>V2RayXS</b> را از <a href="https://github.com/tzmax/V2RayXS/releases" target="_blank">GitHub</a> دانلود کنید.</div>
+<div class="step"><span class="step-num">2</span> لینک کانفیگ را کپی کنید.</div>
+<div class="step"><span class="step-num">3</span> از منوبار روی آیکون → <b>Import from Pasteboard</b></div>
+<div class="step"><span class="step-num">4</span> سرور را انتخاب و وصل شوید. ✅</div>
+</div>
+</div>
+
+<div class="warn">
+💡 اگر مشکلی در اتصال داشتید، لطفاً با ادمین خود تماس بگیرید.
+</div>
+
+<div class="footer">Nahalkmi VPN</div>
+
+</body>
+</html>

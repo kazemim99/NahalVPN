@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NahalVPN brand palette (see nahalvpn-brand/BRAND.md) -->
+<resources>
+    <color name="nahal_pine">#135447</color>        <!-- brand primary, icon background, primary actions -->
+    <color name="nahal_deep_root">#0B2E28</color>   <!-- dark theme background -->
+    <color name="nahal_pistachio">#A6CE39</color>   <!-- connected state, leaf -->
+    <color name="nahal_mist">#EEF5F0</color>        <!-- light theme background -->
+    <color name="nahal_saffron">#F2A93B</color>     <!-- connecting / attention -->
+    <color name="nahal_pomegranate">#C63D4F</color> <!-- errors, blocked -->
+    <color name="nahal_ink">#1F2E2A</color>         <!-- primary text on light -->
+    <color name="nahal_slate">#5E706B</color>       <!-- secondary text -->
+</resources>
