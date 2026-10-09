@@ -39,4 +39,6 @@ it("passwords are 4-digit codes (leading zeros kept) and vary between calls", ()
   assert.ok(seen.size > 200, "codes should vary");
 });
 
-console.log(`\n${passed} passed`);
+console.log(`\n${passed} passed${process.exitCode ? ", SOME FAILED" : ""}`);
+// server-ir2.js starts its status timers on require; end explicitly, like the other panel tests.
+process.exit(process.exitCode || 0);
